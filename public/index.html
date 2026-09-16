@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Market Tycoon: Farm & Quests</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    :root {
+      --bg: #0b1329;
+      --panel: #1e293b;
+      --panel-item: #111b2e;
+      --primary: #38bdf8;
+      --accent: #f59e0b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 12px; padding-bottom: 90px; }
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    header {
+      position: relative;
+      text-align: center;
+      margin-bottom: 14px;
+    }
+    header h1 { font-size: 1.5rem; color: var(--primary); }
+    header p { font-size: 0.85rem; color: var(--text-muted); }
+
+    .lang-toggle {
+      position: absolute;
+      right: 0;
+      top: 0;
+      background: #1e293b;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+    }
+    .lang-toggle:hover { border-color: var(--primary); }
+
+    .card { background: var(--panel); border-radius: 12px; padding: 14px; margin-bottom: 12px; border: 1px solid var(--border); }
+    
+    .btn {
+      background: var(--primary); color: #000; font-weight: 700; border: none;
+      padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 0.9rem;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+    .btn-action { background: var(--accent); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-stepper { width: 34px; height: 34px; font-size: 1.1rem; padding: 0; }
+    .btn-end { background: var(--accent); font-size: 1rem; width: 100%; padding: 12px; }
+
+    input[type="text"] {
+      width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border);
+      background: #090e19; color: #fff; margin-bottom: 8px; font-size: 1rem;
+    }
+
+    /* HUD */
+    .hud-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px; }
+    .hud-box { background: #0f172a; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
+    .hud-box .label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+    .hud-box .val { font-size: 1.15rem; font-weight: bold; margin-top: 2px; }
+
+    /* Columns layout */
+    .columns { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 900px) {
+      .columns { grid-template-columns: 1fr 1fr; }
+      body { padding-bottom: 20px; }
+      .mobile-sticky-bar { display: none !important; }
+    }
+
+    .item-row {
+      background: var(--panel-item); padding: 12px; border-radius: 8px;
+      margin-bottom: 8px; border: 1px solid #1e293b;
+    }
+
+    .quest-card {
+      background: #152238; border-left: 4px solid var(--accent);
+      padding: 10px; border-radius: 6px; margin-bottom: 8px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    .stepper-wrap { display: flex; align-items: center; gap: 6px; }
+
+    .player-tag { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; margin: 2px; }
+    .ready-tag { background: rgba(16, 185, 129, 0.2); border: 1px solid var(--success); color: var(--success); }
+    .waiting-tag { background: rgba(245, 158, 11, 0.2); border: 1px solid var(--accent); color: var(--accent); }
+
+    .profit-pos { color: var(--success); font-weight: bold; }
+    .profit-neg { color: var(--danger); font-weight: bold; }
+
+    .logs { background: #070d19; padding: 10px; border-radius: 8px; font-size: 0.8rem; height: 130px; overflow-y: auto; color: var(--text-muted); }
+
+    .mobile-sticky-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #090e1a; border-top: 1px solid var(--border);
+      padding: 10px 14px; display: flex; gap: 10px; align-items: center; z-index: 99;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <button class="lang-toggle" onclick="toggleLanguage()">
+        🌐 <span id="lang-btn-text">TH (ภาษาไทย)</span>
+      </button>
+      <h1 id="ui-title">Market Tycoon: Farm & Quests</h1>
+      <p id="ui-subtitle">Trade livestock, buy feed, harvest produce, and claim quests to hit 100 VP!</p>
+    </header>
+
+    <!-- Lobby -->
+    <div id="screen-lobby" class="card">
+      <h2 style="margin-bottom: 10px;" id="ui-join-title">Join Game</h2>
+      <input type="text" id="join-name" placeholder="Your Name" />
+      <input type="text" id="join-room" placeholder="Room Code (e.g. FARM)" />
+      <button class="btn btn-action" style="width: 100%;" onclick="joinRoom()" id="ui-join-btn">Enter Game</button>
+    </div>
+
+    <!-- Waiting Room -->
+    <div id="screen-waiting" class="card" style="display: none;">
+      <h2><span id="ui-room-label">Room</span>: <span id="waiting-room-code" style="color: var(--primary)"></span></h2>
+      <div id="waiting-player-list" style="margin: 10px 0;"></div>
+      <button id="btn-start" class="btn btn-action" style="display:none; width:100%;" onclick="startGame()">Start Match</button>
+      <span id="waiting-msg" style="color: var(--text-muted); font-size: 0.9rem;">Waiting for host to start...</span>
+    </div>
+
+    <!-- Active Game -->
+    <div id="screen-game" style="display: none;">
+      <!-- HUD Card -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <h3><span id="ui-day-label">Day</span> <span id="hud-round">1</span></h3>
+          <div id="ready-status-container"></div>
+        </div>
+        
+        <div class="hud-grid">
+          <div class="hud-box">
+            <div class="label" id="ui-label-cash">Cash</div>
+            <div class="val" id="hud-cash" style="color: var(--success);">$1000</div>
+          </div>
+          <div class="hud-box">
+            <div class="label" id="ui-label-vp">Quest VP</div>
+            <div class="val" id="hud-points" style="color: var(--accent);">0 / 100</div>
+          </div>
+          <div class="hud-box">
+            <div class="label" id="ui-label-feed">Feed Bags</div>
+            <div class="val" id="hud-feed" style="color: #60a5fa;">0 🌾</div>
+          </div>
+          <div class="hud-box">
+            <div class="label" id="ui-label-need">Feed Need</div>
+            <div class="val" id="hud-need" style="color: var(--danger);">0 / day</div>
+          </div>
+        </div>
+
+        <button id="btn-ready-desktop" class="btn btn-end" onclick="toggleReady()">🌙 Feed Animals & End Day</button>
+      </div>
+
+      <!-- Quests Section -->
+      <div class="card">
+        <h3 style="color: var(--accent); margin-bottom: 8px;" id="ui-quests-title">🎯 Target Quests (100 VP to Win)</h3>
+        <div id="quest-list"></div>
+      </div>
+
+      <div class="columns">
+        <!-- Marketplace -->
+        <div class="card">
+          <h3 style="color: var(--primary); margin-bottom: 10px;" id="ui-market-title">Marketplace: Buy Animals & Feed</h3>
+          
+          <!-- Buy Feed -->
+          <div class="item-row" style="display:flex; justify-content:space-between; align-items:center; background:#16243b;">
+            <div>
+              <strong id="ui-feedbags-name">Feed Bags 🌾 ($10 ea)</strong>
+              <div style="font-size:0.75rem; color:var(--text-muted);" id="ui-feedbags-desc">Prevent starvation & trigger produce!</div>
+            </div>
+            <div class="stepper-wrap">
+              <button class="btn btn-stepper" onclick="stepFeed(-5)">-5</button>
+              <button class="btn btn-stepper" onclick="stepFeed(-1)">-1</button>
+              <span id="buy-feed-count" style="font-weight:bold; min-width:24px; text-align:center;">5</span>
+              <button class="btn btn-stepper" onclick="stepFeed(1)">+1</button>
+              <button class="btn btn-stepper" onclick="stepFeed(5)">+5</button>
+              <button class="btn btn-success" onclick="buyFeed()" id="ui-buy-feed-btn">Buy</button>
+            </div>
+          </div>
+
+          <!-- Buy Animals List -->
+          <div id="market-animals-list"></div>
+        </div>
+
+        <!-- Inventory: Livestock & Produce -->
+        <div class="card">
+          <h3 style="color: var(--primary); margin-bottom: 10px;" id="ui-barn-title">Your Barn: Livestock & Harvest</h3>
+          
+          <!-- Livestock Holdings -->
+          <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 6px;" id="ui-holdings-title">Owned Livestock (Liquidate with - / +)</h4>
+          <div id="inventory-animals-list"></div>
+
+          <!-- Produce Storage -->
+          <div style="margin-top: 14px;">
+            <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 6px;" id="ui-produce-title">Produce Harvest (Sell for Cash or Deliver to Quests)</h4>
+            <div id="produce-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Feed -->
+      <div class="card">
+        <h4 style="margin-bottom: 6px; font-size: 0.95rem;" id="ui-log-title">Farm Log</h4>
+        <div class="logs" id="logs-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Sticky Bar -->
+  <div class="mobile-sticky-bar" id="mobile-bottom-bar" style="display: none;">
+    <div style="flex: 1; font-size: 0.8rem;">
+      <div><span id="ui-bar-cash-lbl">Cash</span>: <b id="bar-cash" style="color: var(--success);">$1000</b></div>
+      <div><span id="ui-bar-vp-lbl">VP</span>: <b id="bar-vp" style="color: var(--accent);">0</b> | <span id="ui-bar-food-lbl">Food</span>: <b id="bar-food" style="color: #60a5fa;">0</b></div>
+    </div>
+    <button id="btn-ready-mobile" class="btn btn-action" style="flex: 1.5;" onclick="toggleReady()">End Day</button>
+  </div>
+
+  <script>
+    // i18n Dictionary
+    let currentLang = 'en'; // 'en' or 'th'
+
+    const I18N = {
+      en: {
+        toggleBtn: 'TH (ภาษาไทย)',
+        title: 'Market Tycoon: Farm & Quests',
+        subtitle: 'Trade livestock, buy feed, harvest produce, and claim quests to hit 100 VP!',
+        joinTitle: 'Join Game',
+        joinBtn: 'Enter Game',
+        namePlaceholder: 'Your Name',
+        roomPlaceholder: 'Room Code (e.g. FARM)',
+        roomLabel: 'Room',
+        startBtn: 'Start Match',
+        waitingHost: 'Waiting for host to start...',
+        dayLabel: 'Day',
+        labelCash: 'Cash',
+        labelVP: 'Quest VP',
+        labelFeed: 'Feed Bags',
+        labelNeed: 'Feed Need',
+        bagsPerDay: 'bags / day',
+        endDayBtn: '🌙 Feed Animals & End Day',
+        endDayBtnWaiting: '⏳ Waiting for others...',
+        questsTitle: '🎯 Target Quests (100 VP to Win)',
+        claimBtn: 'Claim',
+        claimedStatus: '✓ Claimed',
+        mustHoldDay: 'Must hold ≥1 full day',
+        rewardText: 'Reward',
+        settledText: 'Settled (Held ≥1 Day)',
+        totalOwnedText: 'Total owned',
+        harvestedText: 'Harvested',
+        marketTitle: 'Marketplace: Buy Animals & Feed',
+        feedBagsName: 'Feed Bags 🌾 ($10 ea)',
+        feedBagsDesc: 'Prevent starvation & trigger produce!',
+        buyBtn: 'Buy',
+        eatsText: 'Eats',
+        feedPerDay: 'feed/day',
+        marketPriceText: 'Market',
+        barnTitle: 'Your Barn: Livestock & Harvest',
+        holdingsTitle: 'Owned Livestock (Liquidate with - / +)',
+        noAnimals: 'No livestock owned. Buy from the market!',
+        avgCostText: 'Avg',
+        needsText: 'Needs',
+        sellActionText: 'Sell',
+        forText: 'for',
+        produceTitle: 'Produce Harvest (Sell for Cash or Deliver to Quests)',
+        noProduce: 'Barn is empty. Feed animals overnight to harvest produce!',
+        marketUnitPrice: 'Market Price',
+        eachText: 'ea',
+        sellOne: 'Sell 1',
+        sellAll: 'Sell All',
+        logTitle: 'Farm Log',
+        statusReady: 'Ready',
+        statusTending: 'Tending Farm',
+        winnerAlert: '🏆 WINNER! {name} reached 100 VP!',
+        // Asset Translations
+        assets: {
+          chicken: 'Poultry Flock 🐔',
+          pig: 'Truffle Pig 🐷',
+          dairy_cow: 'Dairy Cow 🐮',
+          thoroughbred: 'Race Horse 🐴'
+        },
+        produce: {
+          egg: 'Eggs 🥚',
+          truffle: 'Truffles 🍄',
+          milk: 'Milk 🥛',
+          trophy: 'Trophies 🏆'
+        },
+        quests: {
+          q_chickens_10: { title: 'Flock Master', desc: 'Own at least 10 Chickens' },
+          q_eggs_20: { title: 'Egg Cartel', desc: 'Deliver 20 Eggs' },
+          q_pigs_4: { title: 'Truffle Hunter', desc: 'Own at least 4 Truffle Pigs' },
+          q_truffles_10: { title: 'Gourmet Feast', desc: 'Deliver 10 Truffles' },
+          q_cows_3: { title: 'Dairy Giant', desc: 'Own at least 3 Dairy Cows' },
+          q_milk_10: { title: 'Milk Pipeline', desc: 'Deliver 10 Jugs of Milk' },
+          q_horse_2: { title: 'Stable Baron', desc: 'Own at least 2 Race Horses' },
+          q_trophies_5: { title: 'Triple Crown', desc: 'Deliver 5 Trophies' }
+        }
+      },
+      th: {
+        toggleBtn: 'EN (English)',
+        title: 'เศรษฐีตลาดฟาร์ม: Farm & Quests',
+        subtitle: 'ซื้อขายสัตว์ เลี้ยงดู เก็บเกี่ยวผลผลิต และทำภารกิจให้ครบ 100 แต้มเพื่อชนะ!',
+        joinTitle: 'เข้าสู่ห้องเล่นเกม',
+        joinBtn: 'เข้าเล่นเกม',
+        namePlaceholder: 'ชื่อของคุณ',
+        roomPlaceholder: 'รหัสห้อง (เช่น FARM)',
+        roomLabel: 'ห้อง',
+        startBtn: 'เริ่มเกมเลย',
+        waitingHost: 'กำลังรอหัวหน้าห้องเริ่มเกม...',
+        dayLabel: 'วันที่',
+        labelCash: 'เงินสด',
+        labelVP: 'แต้มภารกิจ (VP)',
+        labelFeed: 'ถุงอาหารสัตว์',
+        labelNeed: 'ต้องการอาหาร',
+        bagsPerDay: 'ถุง / วัน',
+        endDayBtn: '🌙 ให้อาหารสัตว์ & จบวัน',
+        endDayBtnWaiting: '⏳ กำลังรอผู้เล่นคนอื่น...',
+        questsTitle: '🎯 กระดานภารกิจ (ครบ 100 VP ชนะทันที)',
+        claimBtn: 'รับรางวัล',
+        claimedStatus: '✓ รับแล้ว',
+        mustHoldDay: 'ต้องถือครองครบอย่างน้อย 1 วันเต็ม',
+        rewardText: 'รางวัล',
+        settledText: 'เลี้ยงรอด (ถือ ≥1 วัน)',
+        totalOwnedText: 'ถือครองทั้งหมด',
+        harvestedText: 'ผลผลิตในคลัง',
+        marketTitle: 'ตลาดกลาง: ซื้อสัตว์และอาหารสัตว์',
+        feedBagsName: 'ถุงอาหารสัตว์ 🌾 (ถุงละ $10)',
+        feedBagsDesc: 'ป้องกันสัตว์อดตาย และทำให้สัตว์ผลิตผลผลิต!',
+        buyBtn: 'ซื้อ',
+        eatsText: 'กิน',
+        feedPerDay: 'ถุง/วัน',
+        marketPriceText: 'ราคาตลาด',
+        barnTitle: 'โรงนาของคุณ: สัตว์เลี้ยง & ผลผลิต',
+        holdingsTitle: 'สัตว์เลี้ยงที่ครอบครอง (ขายออกโดยใช้ - / +)',
+        noAnimals: 'คุณยังไม่มีสัตว์เลี้ยง ซื้อได้จากตลาดทางด้านซ้าย!',
+        avgCostText: 'ทุนเฉลี่ย',
+        needsText: 'ต้องการ',
+        sellActionText: 'ขาย',
+        forText: 'เป็นเงิน',
+        produceTitle: 'ผลผลิตที่เก็บเกี่ยวได้ (ขายเอาเงินสด หรือส่งมอบภารกิจ)',
+        noProduce: 'คลังผลผลิตว่างเปล่า เลี้ยงสัตว์ให้รอดข้ามคืนเพื่อเก็บผลผลิต!',
+        marketUnitPrice: 'ราคาตลาด',
+        eachText: 'ชิ้น',
+        sellOne: 'ขาย 1 ชิ้น',
+        sellAll: 'ขายทั้งหมด',
+        logTitle: 'บันทึกเหตุการณ์ฟาร์ม',
+        statusReady: 'พร้อมแล้ว',
+        statusTending: 'กำลังดูแลฟาร์ม',
+        winnerAlert: '🏆 ยินดีด้วย! {name} ทำแต้มครบ 100 VP และชนะเกมนี้!',
+        // Asset Translations
+        assets: {
+          chicken: 'ฝูงไก่ไข่ 🐔',
+          pig: 'หมูดมเห็ดทรัฟเฟิล 🐷',
+          dairy_cow: 'โคนม 🐮',
+          thoroughbred: 'ม้าแข่งพันธุ์ดี 🐴'
+        },
+        produce: {
+          egg: 'ไข่ไก่ 🥚',
+          truffle: 'เห็ดทรัฟเฟิล 🍄',
+          milk: 'นมสด 🥛',
+          trophy: 'ถ้วยรางวัล 🏆'
+        },
+        quests: {
+          q_chickens_10: { title: 'เจ้าของฝูงไก่', desc: 'เลี้ยงไก่รอดข้ามวันอย่างน้อย 10 ตัว' },
+          q_eggs_20: { title: 'พ่อค้าไข่ไก่', desc: 'ส่งมอบไข่ไก่ 20 ฟอง' },
+          q_pigs_4: { title: 'นักล่าทรัฟเฟิล', desc: 'เลี้ยงหมูรอดข้ามวันอย่างน้อย 4 ตัว' },
+          q_truffles_10: { title: 'เมนูระดับภัตตาคาร', desc: 'ส่งมอบเห็ดทรัฟเฟิล 10 ชิ้น' },
+          q_cows_3: { title: 'เจ้าของฟาร์มโคนม', desc: 'เลี้ยงโคนมรอดข้ามวันอย่างน้อย 3 ตัว' },
+          q_milk_10: { title: 'ส่งมอบนมสด', desc: 'ส่งมอบนมสด 10 ถัง' },
+          q_horse_2: { title: 'คอกม้าแชมป์เปี้ยน', desc: 'เลี้ยงม้าแข่งรอดข้ามวันอย่างน้อย 2 ตัว' },
+          q_trophies_5: { title: 'เจ้าสังเวียนม้าแข่ง', desc: 'ส่งมอบถ้วยรางวัล 5 ถ้วย' }
+        }
+      }
+    };
+
+    function t(key) {
+      return I18N[currentLang][key] || key;
+    }
+
+    function toggleLanguage() {
+      currentLang = (currentLang === 'en') ? 'th' : 'en';
+      applyLanguageStatic();
+      renderUI();
+    }
+
+    function applyLanguageStatic() {
+      document.getElementById('lang-btn-text').innerText = t('toggleBtn');
+      document.getElementById('ui-title').innerText = t('title');
+      document.getElementById('ui-subtitle').innerText = t('subtitle');
+      document.getElementById('ui-join-title').innerText = t('joinTitle');
+      document.getElementById('ui-join-btn').innerText = t('joinBtn');
+      document.getElementById('join-name').placeholder = t('namePlaceholder');
+      document.getElementById('join-room').placeholder = t('roomPlaceholder');
+      document.getElementById('ui-room-label').innerText = t('roomLabel');
+      document.getElementById('btn-start').innerText = t('startBtn');
+      document.getElementById('waiting-msg').innerText = t('waitingHost');
+
+      document.getElementById('ui-day-label').innerText = t('dayLabel');
+      document.getElementById('ui-label-cash').innerText = t('labelCash');
+      document.getElementById('ui-label-vp').innerText = t('labelVP');
+      document.getElementById('ui-label-feed').innerText = t('labelFeed');
+      document.getElementById('ui-label-need').innerText = t('labelNeed');
+
+      document.getElementById('ui-quests-title').innerText = t('questsTitle');
+      document.getElementById('ui-market-title').innerText = t('marketTitle');
+      document.getElementById('ui-feedbags-name').innerText = t('feedBagsName');
+      document.getElementById('ui-feedbags-desc').innerText = t('feedBagsDesc');
+      document.getElementById('ui-buy-feed-btn').innerText = t('buyBtn');
+
+      document.getElementById('ui-barn-title').innerText = t('barnTitle');
+      document.getElementById('ui-holdings-title').innerText = t('holdingsTitle');
+      document.getElementById('ui-produce-title').innerText = t('produceTitle');
+      document.getElementById('ui-log-title').innerText = t('logTitle');
+
+      document.getElementById('ui-bar-cash-lbl').innerText = t('labelCash');
+      document.getElementById('ui-bar-vp-lbl').innerText = 'VP';
+      document.getElementById('ui-bar-food-lbl').innerText = t('labelFeed');
+    }
+
+    const socket = io();
+    const ASSETS = [
+      { id: 'chicken', feedCost: 1, produce: 'egg' },
+      { id: 'pig', feedCost: 2, produce: 'truffle' },
+      { id: 'dairy_cow', feedCost: 4, produce: 'milk' },
+      { id: 'thoroughbred', feedCost: 8, produce: 'trophy' }
+    ];
+
+    let roomState = null;
+    let feedOrderCount = 5;
+    let buySteppers = { chicken: 1, pig: 1, dairy_cow: 1, thoroughbred: 1 };
+    let sellSteppers = { chicken: 1, pig: 1, dairy_cow: 1, thoroughbred: 1 };
+
+    function joinRoom() {
+      const name = document.getElementById('join-name').value.trim();
+      const room = document.getElementById('join-room').value.trim();
+      if (!room) return alert(currentLang === 'th' ? "กรุณาใส่รหัสห้อง!" : "Please enter a room code!");
+      socket.emit('join_room', { roomId: room, playerName: name });
+    }
+
+    function startGame() { socket.emit('start_game'); }
+
+    function stepFeed(delta) {
+      feedOrderCount = Math.max(1, feedOrderCount + delta);
+      document.getElementById('buy-feed-count').innerText = feedOrderCount;
+    }
+
+    function buyFeed() {
+      socket.emit('buy_feed', { count: feedOrderCount });
+    }
+
+    function stepBuy(id, delta) {
+      buySteppers[id] = Math.max(1, (buySteppers[id] || 1) + delta);
+      renderUI();
+    }
+
+    function buyAnimal(id) {
+      const count = buySteppers[id] || 1;
+      socket.emit('buy_animal', { itemId: id, count });
+    }
+
+    function stepSell(id, delta) {
+      const me = roomState?.players[socket.id];
+      const maxOwned = (me?.inventory[id] || []).length;
+      sellSteppers[id] = Math.min(maxOwned, Math.max(1, (sellSteppers[id] || 1) + delta));
+      renderUI();
+    }
+
+    function sellAnimal(id) {
+      const count = sellSteppers[id] || 1;
+      socket.emit('sell_animal', { itemId: id, count });
+      sellSteppers[id] = 1;
+    }
+
+    function sellProduce(produceId, count = 1) {
+      socket.emit('sell_produce', { produceId, count });
+    }
+
+    function claimQuest(questId) {
+      socket.emit('claim_quest', { questId });
+    }
+
+    function toggleReady() {
+      socket.emit('toggle_ready');
+      const desk = document.getElementById('btn-ready-desktop');
+      const mob = document.getElementById('btn-ready-mobile');
+      desk.disabled = true;
+      desk.innerText = t('endDayBtnWaiting');
+      mob.disabled = true;
+      mob.innerText = (currentLang === 'th' ? 'รอสักครู่...' : 'Waiting...');
+    }
+
+    socket.on('room_update', (data) => {
+      roomState = data;
+
+      if (data.winner) {
+        alert(t('winnerAlert').replace('{name}', data.winner));
+      }
+
+      if (!data.started) {
+        document.getElementById('screen-lobby').style.display = 'none';
+        document.getElementById('screen-waiting').style.display = 'block';
+        document.getElementById('waiting-room-code').innerText = data.roomId;
+
+        document.getElementById('waiting-player-list').innerHTML = Object.values(data.players).map(p => `
+          <div class="player-tag ready-tag">${p.name}</div>
+        `).join('');
+
+        if (data.hostId === socket.id) {
+          document.getElementById('btn-start').style.display = 'inline-block';
+          document.getElementById('waiting-msg').style.display = 'none';
+        }
+      } else {
+        document.getElementById('screen-lobby').style.display = 'none';
+        document.getElementById('screen-waiting').style.display = 'none';
+        document.getElementById('screen-game').style.display = 'block';
+        document.getElementById('mobile-bottom-bar').style.display = 'flex';
+
+        const me = data.players[socket.id];
+        if (me && !me.ready) {
+          const desk = document.getElementById('btn-ready-desktop');
+          const mob = document.getElementById('btn-ready-mobile');
+          desk.disabled = false;
+          desk.innerText = t('endDayBtn');
+          mob.disabled = false;
+          mob.innerText = (currentLang === 'th' ? 'จบวัน' : 'End Day');
+        }
+        renderUI();
+      }
+    });
+
+    socket.on('error_msg', (msg) => alert(msg));
+
+    function renderUI() {
+      if (!roomState) return;
+      const me = roomState.players[socket.id];
+      if (!me) return;
+
+      const isLocked = me.ready;
+
+      // HUD
+      document.getElementById('hud-round').innerText = roomState.round;
+      document.getElementById('hud-cash').innerText = `$${me.cash}`;
+      document.getElementById('hud-points').innerText = `${me.points} / ${roomState.targetVP}`;
+      document.getElementById('hud-feed').innerText = `${me.feedBags} 🌾`;
+
+      let neededFeed = 0;
+      ASSETS.forEach(item => {
+        neededFeed += (me.inventory[item.id] || []).length * item.feedCost;
+      });
+      document.getElementById('hud-need').innerText = `${neededFeed} ${t('bagsPerDay')}`;
+      document.getElementById('hud-need').style.color = (me.feedBags >= neededFeed) ? 'var(--success)' : 'var(--danger)';
+
+      document.getElementById('bar-cash').innerText = `$${me.cash}`;
+      document.getElementById('bar-vp').innerText = `${me.points} VP`;
+      document.getElementById('bar-food').innerText = `${me.feedBags} 🌾`;
+
+      // Status tags
+      document.getElementById('ready-status-container').innerHTML = Object.values(roomState.players).map(p => `
+        <span class="player-tag ${p.ready ? 'ready-tag' : 'waiting-tag'}">
+          ${p.name}: ${p.ready ? t('statusReady') : t('statusTending')}
+        </span>
+      `).join('');
+
+      // Quests
+      const qDiv = document.getElementById('quest-list');
+      qDiv.innerHTML = '';
+      const currentRound = Number(roomState.round);
+
+      roomState.quests.forEach(q => {
+        const isDone = me.completedQuests.includes(q.id);
+        const card = document.createElement('div');
+        card.className = 'quest-card';
+
+        let canClaim = false;
+        let progressText = '';
+
+        if (q.type === 'OWN_ANIMAL') {
+          const targetKey = q.targetId || q.target;
+          const list = me.inventory[targetKey] || [];
+          const settledCount = list.filter(a => {
+            const roundBought = typeof a.boughtRound === 'number' ? a.boughtRound : 1;
+            return roundBought < currentRound;
+          }).length;
+          canClaim = settledCount >= q.amount;
+          progressText = `${t('settledText')}: ${settledCount}/${q.amount} (${t('totalOwnedText')}: ${list.length})`;
+        } else if (q.type === 'DELIVER_PRODUCE') {
+          const have = me.produce[q.target] || 0;
+          canClaim = have >= q.amount;
+          progressText = `${t('harvestedText')}: ${have}/${q.amount}`;
+        }
+
+        const qTrans = I18N[currentLang].quests[q.id] || { title: q.title, desc: q.desc };
+
+        card.innerHTML = `
+          <div>
+            <strong>${qTrans.title}</strong>
+            <div style="font-size:0.75rem; color:var(--text-muted);">${qTrans.desc} (${t('mustHoldDay')})</div>
+            <div style="font-size:0.75rem; color:var(--accent);">${t('rewardText')}: +${q.rewardVP} VP | +$${q.rewardCash}</div>
+            <div style="font-size:0.75rem; color:${canClaim ? 'var(--success)' : 'var(--text-muted)'}; margin-top:2px;">
+              ${progressText}
+            </div>
+          </div>
+          <div>
+            ${isDone 
+              ? `<span style="color:var(--success); font-weight:bold; font-size:0.85rem;">${t('claimedStatus')}</span>` 
+              : `<button class="btn btn-action" onclick="claimQuest('${q.id}')" ${!canClaim || isLocked ? 'disabled' : ''}>${t('claimBtn')}</button>`
+            }
+          </div>
+        `;
+        qDiv.appendChild(card);
+      });
+
+      // Buy Animals List
+      const mDiv = document.getElementById('market-animals-list');
+      if (mDiv) {
+        mDiv.innerHTML = '';
+        ASSETS.forEach(item => {
+          const marketAnimal = roomState?.market?.animal || {};
+          const fallbackPrices = { chicken: 100, pig: 250, dairy_cow: 500, thoroughbred: 1000 };
+          const price = marketAnimal[item.id] || fallbackPrices[item.id] || 100;
+          
+          const count = buySteppers[item.id] || 1;
+          const total = price * count;
+
+          const animalName = I18N[currentLang].assets[item.id] || item.id;
+
+          const row = document.createElement('div');
+          row.className = 'item-row';
+          row.style.display = 'flex';
+          row.style.justifyContent = 'space-between';
+          row.style.alignItems = 'center';
+          row.style.marginTop = '8px';
+
+          row.innerHTML = `
+            <div>
+              <strong style="font-size: 1rem;">${animalName}</strong>
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+                ${t('eatsText')}: <b>${item.feedCost} ${t('feedPerDay')}</b> | ${t('marketPriceText')}: <b style="color:var(--primary);">$${price}</b>
+              </div>
+            </div>
+            <div class="stepper-wrap">
+              <button class="btn btn-stepper" onclick="stepBuy('${item.id}', -1)" ${isLocked ? 'disabled' : ''}>-</button>
+              <span style="font-weight:bold; min-width:22px; text-align:center;">${count}</span>
+              <button class="btn btn-stepper" onclick="stepBuy('${item.id}', 1)" ${isLocked ? 'disabled' : ''}>+</button>
+              <button class="btn btn-success" onclick="buyAnimal('${item.id}')" ${me.cash < total || isLocked ? 'disabled' : ''}>
+                ${t('buyBtn')} ($${total})
+              </button>
+            </div>
+          `;
+          mDiv.appendChild(row);
+        });
+      }
+
+      // Sell Animals List (Holdings)
+      const aDiv = document.getElementById('inventory-animals-list');
+      aDiv.innerHTML = '';
+      let hasAnimals = false;
+      ASSETS.forEach(item => {
+        const units = me.inventory[item.id] || [];
+        const owned = units.length;
+        if (owned > 0) {
+          hasAnimals = true;
+          const marketAnimal = roomState?.market?.animal || {};
+          const currentPrice = marketAnimal[item.id] || 100;
+          const totalCost = units.reduce((acc, u) => acc + (u.boughtAt || currentPrice), 0);
+          const avg = Math.round(totalCost / owned);
+          const profit = (owned * currentPrice) - totalCost;
+
+          const toSell = Math.min(owned, sellSteppers[item.id] || 1);
+          const sellTotal = toSell * currentPrice;
+
+          const animalName = I18N[currentLang].assets[item.id] || item.id;
+
+          const row = document.createElement('div');
+          row.className = 'item-row';
+          row.innerHTML = `
+            <div style="display:flex; justify-content:space-between;">
+              <strong>${animalName} (x${owned})</strong>
+              <span class="${profit >= 0 ? 'profit-pos' : 'profit-neg'}">P/L: ${profit >= 0 ? '+' : ''}$${profit}</span>
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-muted); display:flex; justify-content:space-between; margin:4px 0;">
+              <span>${t('avgCostText')}: $${avg} | ${t('marketPriceText')}: $${currentPrice}</span>
+              <span>${t('needsText')}: ${item.feedCost * owned} ${t('feedPerDay')}</span>
+            </div>
+            <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:6px;">
+              <div class="stepper-wrap">
+                <button class="btn btn-stepper" onclick="stepSell('${item.id}', -1)" ${isLocked ? 'disabled' : ''}>-</button>
+                <span style="font-weight:bold; min-width:20px; text-align:center;">${toSell}</span>
+                <button class="btn btn-stepper" onclick="stepSell('${item.id}', 1)" ${toSell >= owned || isLocked ? 'disabled' : ''}>+</button>
+              </div>
+              <button class="btn btn-danger" onclick="sellAnimal('${item.id}')" ${isLocked ? 'disabled' : ''}>
+                ${t('sellActionText')} ${toSell} ${t('forText')} $${sellTotal}
+              </button>
+            </div>
+          `;
+          aDiv.appendChild(row);
+        }
+      });
+      if (!hasAnimals) {
+        aDiv.innerHTML = `<p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:10px;">${t('noAnimals')}</p>`;
+      }
+
+      // Produce Storage List
+      const pDiv = document.getElementById('produce-list');
+      pDiv.innerHTML = '';
+      let hasProduce = false;
+      ASSETS.forEach(item => {
+        const amount = me.produce[item.produce] || 0;
+        const unitPrice = roomState.market?.produce?.[item.produce] || 15;
+        if (amount > 0) {
+          hasProduce = true;
+          const produceName = I18N[currentLang].produce[item.produce] || item.produce;
+          const row = document.createElement('div');
+          row.className = 'item-row';
+          row.style.display = 'flex';
+          row.style.justifyContent = 'space-between';
+          row.style.alignItems = 'center';
+          row.innerHTML = `
+            <div>
+              <strong>${produceName}: ${amount} ${t('eachText')}</strong>
+              <div style="font-size:0.75rem; color:var(--text-muted);">${t('marketUnitPrice')}: $${unitPrice} ${t('eachText')}</div>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-success" onclick="sellProduce('${item.produce}', 1)" ${isLocked ? 'disabled' : ''}>
+                ${t('sellOne')} ($${unitPrice})
+              </button>
+              <button class="btn btn-success" onclick="sellProduce('${item.produce}', ${amount})" ${isLocked ? 'disabled' : ''}>
+                ${t('sellAll')} ($${amount * unitPrice})
+              </button>
+            </div>
+          `;
+          pDiv.appendChild(row);
+        }
+      });
+      if (!hasProduce) {
+        pDiv.innerHTML = `<p style="font-size:0.8rem; color:var(--text-muted);">${t('noProduce')}</p>`;
+      }
+
+      // Logs
+      document.getElementById('logs-container').innerHTML = roomState.logs.map(l => `<div>• ${l}</div>`).join('');
+    }
+
+    // Initial translation setup
+    applyLanguageStatic();
+  </script>
+</body>
+</html>

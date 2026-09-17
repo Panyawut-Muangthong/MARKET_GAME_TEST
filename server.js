@@ -20,7 +20,6 @@ const FEED_BAG_PRICE = 10;
 const DISCONNECT_GRACE_PERIOD = 60000;
 const rooms = {};
 
-// Keep non-serializable timers outside state objects
 const disconnectTimers = new Map();
 const roomTickers = new Map();
 
@@ -39,7 +38,6 @@ function randomizeMarket() {
 function checkWinCondition(room, player) {
   if (!room.winner && player.cash >= room.targetCash) {
     room.winner = player.name;
-    room.logs.unshift(`🏆 ${player.name} reached the goal with $${player.cash}!`);
     stopRoomTimer(room.roomId);
   }
 }
@@ -85,7 +83,6 @@ function removePlayerFromRoom(room, playerId) {
   if (!player) return;
 
   delete room.players[playerId];
-  room.logs.unshift(`${player.name} left the game.`);
 
   if (Object.keys(room.players).length === 0) {
     stopRoomTimer(room.roomId);
@@ -93,11 +90,8 @@ function removePlayerFromRoom(room, playerId) {
   } else {
     if (room.hostId === playerId) {
       room.hostId = Object.keys(room.players)[0];
-      const newHost = room.players[room.hostId];
-      if (newHost) room.logs.unshift(`${newHost.name} is now the host.`);
     }
 
-    // Check if remaining active players are already ready
     if (room.started && !room.winner) {
       const activePlayers = Object.values(room.players).filter(p => p.connected);
       if (activePlayers.length > 0 && activePlayers.every(p => p.ready)) {
@@ -128,11 +122,10 @@ io.on('connection', (socket) => {
         round: 1,
         baseMoney: 1000,
         targetCash: 5000,
-        dayDuration: 60, // Default 60 seconds per day
+        dayDuration: 60,
         timeLeft: 60,
         market: randomizeMarket(),
-        players: {},
-        logs: [`Room ${roomId} created.`]
+        players: {}
       };
     }
 
@@ -143,7 +136,7 @@ io.on('connection', (socket) => {
       existing.socketId = socket.id;
       existing.connected = true;
       clearPlayerTimer(pId);
-      room.logs.unshift(`${existing.name} reconnected.`);
+      if (playerName) existing.name = playerName;
     } else {
       if (room.started) {
         socket.emit('error_msg', 'Game is already running.');
@@ -184,11 +177,10 @@ io.on('connection', (socket) => {
       p.cash = base;
     });
 
-    room.logs.unshift(`Host adjusted settings: Start $${base}, Goal $${goal}, Day Time ${duration}s.`);
     io.to(room.roomId).emit('room_update', sanitizeRoom(room));
   });
 
-socket.on('start_game', () => {
+  socket.on('start_game', () => {
     const room = rooms[socket.roomId];
     if (!room || room.hostId !== socket.playerId) return;
     if (Object.keys(room.players).length < 1) {
@@ -196,8 +188,7 @@ socket.on('start_game', () => {
       return;
     }
     room.started = true;
-    room.timeLeft = Number(room.dayDuration) || 60; // กำหนดค่าเริ่มต้นเสมอ
-    room.logs.unshift(`Game started! Reach $${room.targetCash} before your competitors!`);
+    room.timeLeft = Number(room.dayDuration) || 60;
     
     startRoomTimer(room);
     io.to(room.roomId).emit('room_update', sanitizeRoom(room));
@@ -214,7 +205,6 @@ socket.on('start_game', () => {
     if (player.cash >= cost) {
       player.cash -= cost;
       player.feedBags += qty;
-      room.logs.unshift(`${player.name} bought ${qty}x Feed Bags for $${cost}.`);
       io.to(room.roomId).emit('room_update', sanitizeRoom(room));
     }
   });
@@ -241,7 +231,6 @@ socket.on('start_game', () => {
           boughtRound: currentRound
         });
       }
-      room.logs.unshift(`${player.name} bought ${qty}x ${itemId} for $${totalCost}.`);
       io.to(room.roomId).emit('room_update', sanitizeRoom(room));
     }
   });
@@ -257,16 +246,10 @@ socket.on('start_game', () => {
 
     if (qty > 0) {
       const currentPrice = room.market.animal[itemId] || 100;
-      let totalBoughtAt = 0;
       for (let i = 0; i < qty; i++) {
-        const sold = units.pop();
-        totalBoughtAt += sold.boughtAt;
+        units.pop();
       }
-      const totalRevenue = qty * currentPrice;
-      const profit = totalRevenue - totalBoughtAt;
-      player.cash += totalRevenue;
-      room.logs.unshift(`${player.name} sold ${qty}x ${itemId} for $${totalRevenue} (P/L: ${profit >= 0 ? '+' : ''}$${profit}).`);
-
+      player.cash += qty * currentPrice;
       checkWinCondition(room, player);
       io.to(room.roomId).emit('room_update', sanitizeRoom(room));
     }
@@ -283,11 +266,8 @@ socket.on('start_game', () => {
 
     if (qty > 0) {
       const unitPrice = room.market.produce[produceId] || 15;
-      const revenue = qty * unitPrice;
       player.produce[produceId] -= qty;
-      player.cash += revenue;
-      room.logs.unshift(`${player.name} sold ${qty}x ${produceId} for $${revenue}.`);
-
+      player.cash += qty * unitPrice;
       checkWinCondition(room, player);
       io.to(room.roomId).emit('room_update', sanitizeRoom(room));
     }
@@ -340,8 +320,6 @@ socket.on('start_game', () => {
 });
 
 function advanceDay(room) {
-  room.logs.unshift(`=== DAY ${room.round} ENDS: FEEDING & HARVEST ===`);
-
   for (const pid in room.players) {
     const p = room.players[pid];
 
@@ -352,26 +330,18 @@ function advanceDay(room) {
 
     if (p.feedBags >= neededFeed) {
       p.feedBags -= neededFeed;
-      room.logs.unshift(`${p.name} fed herds using ${neededFeed} food bags.`);
-
       ASSET_CATALOG.forEach(item => {
         const count = (p.inventory[item.id] || []).length;
         if (count > 0) {
           p.produce[item.produce] = (p.produce[item.produce] || 0) + count;
-          room.logs.unshift(`${p.name}'s livestock produced +${count}x ${item.produceName}!`);
         }
       });
     } else {
-      room.logs.unshift(`⚠️ ${p.name} had insufficient feed (${p.feedBags}/${neededFeed})! Livestock starved!`);
       p.feedBags = 0;
-
       ASSET_CATALOG.forEach(item => {
         const list = p.inventory[item.id] || [];
         const lost = Math.ceil(list.length * 0.5);
         for (let i = 0; i < lost; i++) list.pop();
-        if (lost > 0) {
-          room.logs.unshift(`${p.name} lost ${lost}x ${item.name} to famine!`);
-        }
       });
     }
 
@@ -380,7 +350,6 @@ function advanceDay(room) {
 
   room.round++;
   room.market = randomizeMarket();
-  room.logs.unshift(`☀️ Day ${room.round} begins!`);
 
   startRoomTimer(room);
   io.to(room.roomId).emit('room_update', sanitizeRoom(room));
@@ -413,8 +382,7 @@ function sanitizeRoom(room) {
     timeLeft: typeof room.timeLeft === 'number' ? room.timeLeft : (Number(room.dayDuration) || 60),
     winner: room.winner || null,
     market: room.market,
-    players: safePlayers,
-    logs: room.logs
+    players: safePlayers
   };
 }
 

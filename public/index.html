@@ -79,7 +79,6 @@
     .config-field { flex: 1; min-width: 130px; }
     .config-field label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
 
-    /* HUD Layout: 4 columns to include timer */
     .hud-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px; }
     .hud-box { background: #0f172a; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
     .hud-box .label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
@@ -106,8 +105,6 @@
 
     .profit-pos { color: var(--success); font-weight: bold; }
     .profit-neg { color: var(--danger); font-weight: bold; }
-
-    .logs { background: #070d19; padding: 10px; border-radius: 8px; font-size: 0.8rem; height: 130px; overflow-y: auto; color: var(--text-muted); }
 
     .mobile-sticky-bar {
       position: fixed; bottom: 0; left: 0; right: 0;
@@ -144,7 +141,6 @@
     <div id="screen-waiting" class="card" style="display: none;">
       <h2><span id="ui-room-label">Room</span>: <span id="waiting-room-code" style="color: var(--primary)"></span></h2>
       
-      <!-- Host Settings Panel -->
       <div id="host-settings" style="display: none; margin: 12px 0; border: 1px dashed var(--border); padding: 12px; border-radius: 8px;">
         <h4 style="margin-bottom: 8px; color: var(--accent);" id="ui-host-title">Host Game Rules</h4>
         <div class="config-group">
@@ -235,11 +231,6 @@
           </div>
         </div>
       </div>
-
-      <div class="card">
-        <h4 style="margin-bottom: 6px; font-size: 0.95rem;" id="ui-log-title">Farm Log</h4>
-        <div class="logs" id="logs-container"></div>
-      </div>
     </div>
   </div>
 
@@ -297,7 +288,6 @@
         eachText: 'ea',
         sellOne: 'Sell 1',
         sellAll: 'Sell All',
-        logTitle: 'Farm Log',
         statusReady: 'Ready',
         statusTending: 'Tending Farm',
         statusOffline: 'Offline',
@@ -361,7 +351,6 @@
         eachText: 'ชิ้น',
         sellOne: 'ขาย 1 ชิ้น',
         sellAll: 'ขายทั้งหมด',
-        logTitle: 'บันทึกเหตุการณ์ฟาร์ม',
         statusReady: 'พร้อมแล้ว',
         statusTending: 'กำลังดูแลฟาร์ม',
         statusOffline: 'ออฟไลน์',
@@ -425,7 +414,6 @@
       document.getElementById('ui-barn-title').innerText = t('barnTitle');
       document.getElementById('ui-holdings-title').innerText = t('holdingsTitle');
       document.getElementById('ui-produce-title').innerText = t('produceTitle');
-      document.getElementById('ui-log-title').innerText = t('logTitle');
 
       document.getElementById('ui-bar-cash-lbl').innerText = 'Cash';
       document.getElementById('ui-bar-time-lbl').innerText = t('barTimeLbl');
@@ -554,15 +542,19 @@
     function updateTimerDisplay(seconds) {
       const hudTimer = document.getElementById('hud-timer');
       const barTimer = document.getElementById('bar-timer');
-      const text = `${seconds}s`;
+      const validSeconds = (typeof seconds === 'number' && !isNaN(seconds)) 
+        ? seconds 
+        : (roomState?.dayDuration || 60);
+
+      const text = `${validSeconds}s`;
 
       if (hudTimer) {
         hudTimer.innerText = text;
-        hudTimer.style.color = seconds <= 10 ? 'var(--danger)' : '#38bdf8';
+        hudTimer.style.color = validSeconds <= 10 ? 'var(--danger)' : '#38bdf8';
       }
       if (barTimer) {
         barTimer.innerText = text;
-        barTimer.style.color = seconds <= 10 ? 'var(--danger)' : '#38bdf8';
+        barTimer.style.color = validSeconds <= 10 ? 'var(--danger)' : '#38bdf8';
       }
     }
 
@@ -650,8 +642,7 @@
       document.getElementById('hud-round').innerText = roomState.round;
       document.getElementById('hud-cash').innerText = `$${me.cash} / $${roomState.targetCash}`;
       document.getElementById('hud-feed').innerText = `${me.feedBags} 🌾`;
-      // แทนที่บรรทัดเดิมด้วยบรรทัดนี้
-    updateTimerDisplay(typeof roomState.timeLeft === 'number' ? roomState.timeLeft : roomState.dayDuration);
+      updateTimerDisplay(typeof roomState.timeLeft === 'number' ? roomState.timeLeft : roomState.dayDuration);
 
       let neededFeed = 0;
       ASSETS.forEach(item => {
@@ -804,18 +795,21 @@
       if (!hasProduce) {
         pDiv.innerHTML = `<p style="font-size:0.8rem; color:var(--text-muted);">${t('noProduce')}</p>`;
       }
-
-      document.getElementById('logs-container').innerHTML = roomState.logs.map(l => `<div>• ${l}</div>`).join('');
     }
 
-    // Auto-reconnect on refresh
-    window.addEventListener('DOMContentLoaded', () => {
-      applyLanguageStatic();
-      if (savedRoomId && localPlayerId) {
+    applyLanguageStatic();
+
+    // Reconnect reliably on socket connect
+    socket.on('connect', () => {
+      const currentSavedRoom = sessionStorage.getItem('farm_room_id');
+      const currentSavedId = sessionStorage.getItem('farm_player_id');
+      const currentSavedName = sessionStorage.getItem('farm_player_name');
+
+      if (currentSavedRoom && currentSavedId) {
         socket.emit('join_room', {
-          roomId: savedRoomId,
-          playerName: savedPlayerName,
-          playerId: localPlayerId
+          roomId: currentSavedRoom,
+          playerName: currentSavedName,
+          playerId: currentSavedId
         });
       }
     });

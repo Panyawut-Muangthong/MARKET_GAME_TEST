@@ -20,36 +20,85 @@ const ASSET_CATALOG = [
   { id: 'thoroughbred', name: 'Race Horse 🐴', basePrice: 1000, feedCost: 8, produce: 'trophy', produceName: 'Trophies 🏆', produceBasePrice: 220, yieldPerAnimal: 1, minPrice: 450, maxPrice: 2200, prodMin: 90, prodMax: 550 }
 ];
 
-const FEED_BAG_PRICE = 10;
+const EVENTS = [
+  {
+    id: 'flu_epidemic',
+    titleEn: '🦠 Severe Farm Flu Epidemic!',
+    titleTh: '🦠 การระบาดของไข้หวัดสัตว์รุนแรง!',
+    descEn: 'Produce yield drops by 50%! Animals without medicine may die overnight!',
+    descTh: 'ผลผลิตลดลง 50%! สัตว์ที่ไม่ได้รับยาอาจล้มตายข้ามคืน!',
+    duration: 2,
+    produceMult: 0.5,
+    feedPriceMult: 1.0,
+    deathRisk: 0.35 // 35% chance per unmedicated animal to perish overnight
+  },
+  {
+    id: 'bumper_harvest',
+    titleEn: '🌻 Golden Sunshine Festival!',
+    titleTh: '🌻 เทศกาลแดดทอง ผลผลิตเบ่งบาน!',
+    descEn: 'Healthy animals produce double yields today!',
+    descTh: 'สัตว์ที่แข็งแรงและได้รับอาหารจะให้ผลผลิตเป็น 2 เท่าในวันนี้!',
+    duration: 1,
+    produceMult: 2.0,
+    feedPriceMult: 1.0,
+    deathRisk: 0
+  },
+  {
+    id: 'feed_shortage',
+    titleEn: '🌾 Global Feed Logistics Crisis!',
+    titleTh: '🌾 วิกฤตการณ์ขาดแคลนอาหารสัตว์!',
+    descEn: 'Feed prices have surged to $25 per bag due to drought and supply disruption!',
+    descTh: 'ราคาอาหารสัตว์พุ่งขึ้นเป็นถุงละ $25 เนื่องจากวิกฤตภัยแล้งและการขนส่ง!',
+    duration: 2,
+    produceMult: 1.0,
+    feedPriceMult: 2.5,
+    deathRisk: 0
+  },
+  {
+    id: 'gourmet_boom',
+    titleEn: '🍾 Gourmet Restaurant Boom!',
+    titleTh: '🍾 กระแสภัตตาคารหรูระดับโลก!',
+    descEn: 'High-end delicacies in demand! Produce sells for +60% on the market!',
+    descTh: 'ความต้องการวัตถุดิบพรีเมียมล้นหลาม! ขายผลผลิตในตลาดได้ราคาสูงขึ้น +60%!',
+    duration: 2,
+    produceMult: 1.0,
+    feedPriceMult: 1.0,
+    marketProduceMult: 1.6,
+    deathRisk: 0
+  }
+];
+
+const BASE_FEED_PRICE = 10;
+const MEDICINE_PRICE = 35;
 const DISCONNECT_GRACE_PERIOD = 60000;
 const rooms = {};
 
 const disconnectTimers = new Map();
 const roomTickers = new Map();
 
-// Swings price between -35% and +45% with mean reversion toward baseline
-function calculateBouncingPrice(currentVal, baseVal, minVal, maxVal) {
+function calculateBouncingPrice(currentVal, baseVal, minVal, maxVal, multiplier = 1.0) {
   const previous = currentVal || baseVal;
   const meanReversion = (baseVal - previous) * 0.15;
   const swing = 1 + (Math.random() * 0.8 - 0.35);
-  let next = Math.round(previous * swing + meanReversion);
-  next = Math.max(minVal, Math.min(maxVal, next));
+  let next = Math.round((previous * swing + meanReversion) * multiplier);
+  next = Math.max(minVal, Math.min(maxVal * 2, next));
 
   const pctChange = Math.round(((next - previous) / previous) * 100);
   return { price: next, pctChange };
 }
 
-function randomizeMarket(prevMarket = null) {
+function randomizeMarket(prevMarket = null, activeEvent = null) {
   const animal = {};
   const produce = {};
   const deltas = { animal: {}, produce: {} };
+  const produceMult = activeEvent?.marketProduceMult || 1.0;
 
   ASSET_CATALOG.forEach(item => {
     const prevA = prevMarket?.animal?.[item.id];
     const prevP = prevMarket?.produce?.[item.produce];
 
-    const resA = calculateBouncingPrice(prevA, item.basePrice, item.minPrice, item.maxPrice);
-    const resP = calculateBouncingPrice(prevP, item.produceBasePrice, item.prodMin, item.prodMax);
+    const resA = calculateBouncingPrice(prevA, item.basePrice, item.minPrice, item.maxPrice, 1.0);
+    const resP = calculateBouncingPrice(prevP, item.produceBasePrice, item.prodMin, item.prodMax, produceMult);
 
     animal[item.id] = resA.price;
     deltas.animal[item.id] = resA.pctChange;
@@ -59,6 +108,18 @@ function randomizeMarket(prevMarket = null) {
   });
 
   return { animal, produce, deltas };
+}
+
+function pickRandomEvent(force = false) {
+  if (force || Math.random() < 0.75) {
+    const template = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+    return {
+      ...template,
+      instanceId: template.id + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      remainingDays: template.duration
+    };
+  }
+  return null;
 }
 
 function checkWinCondition(room, player) {
@@ -150,6 +211,8 @@ io.on('connection', (socket) => {
         targetCash: 5000,
         dayDuration: 60,
         timeLeft: 60,
+        event: null,
+        feedPrice: BASE_FEED_PRICE,
         market: randomizeMarket(),
         players: {}
       };
@@ -188,10 +251,12 @@ io.on('connection', (socket) => {
         name: playerName || `Player ${Object.keys(room.players).length + 1}`,
         cash: room.baseMoney,
         feedBags: 15,
+        medicine: 0,
         inventory: emptyInventory,
         produce: emptyProduce,
         ready: false,
-        connected: true
+        connected: true,
+        lastReport: null
       };
     }
 
@@ -226,6 +291,12 @@ io.on('connection', (socket) => {
       socket.emit('error_msg', 'Need at least 1 player to start.');
       return;
     }
+
+    // Force an event on Day 1
+    room.event = pickRandomEvent(true);
+    room.feedPrice = BASE_FEED_PRICE * (room.event?.feedPriceMult || 1.0);
+    room.market = randomizeMarket(null, room.event);
+
     room.started = true;
     room.timeLeft = Number(room.dayDuration) || 60;
     
@@ -240,10 +311,26 @@ io.on('connection', (socket) => {
     if (!player || player.ready) return;
 
     const qty = Math.max(1, count || 1);
-    const cost = qty * FEED_BAG_PRICE;
+    const currentFeedPrice = room.feedPrice || BASE_FEED_PRICE;
+    const cost = qty * currentFeedPrice;
     if (player.cash >= cost) {
       player.cash -= cost;
       player.feedBags += qty;
+      io.to(room.roomId).emit('room_update', sanitizeRoom(room));
+    }
+  });
+
+  socket.on('buy_medicine', ({ count }) => {
+    const room = rooms[socket.roomId];
+    if (!room || !room.started || room.winner) return;
+    const player = room.players[socket.playerId];
+    if (!player || player.ready) return;
+
+    const qty = Math.max(1, count || 1);
+    const cost = qty * MEDICINE_PRICE;
+    if (player.cash >= cost) {
+      player.cash -= cost;
+      player.medicine = (player.medicine || 0) + qty;
       io.to(room.roomId).emit('room_update', sanitizeRoom(room));
     }
   });
@@ -367,22 +454,32 @@ io.on('connection', (socket) => {
 });
 
 function advanceDay(room) {
+  const currentEvent = room.event;
+  const isFlu = currentEvent?.id === 'flu_epidemic';
+  const produceYieldMult = currentEvent?.produceMult !== undefined ? currentEvent.produceMult : 1.0;
+
   for (const pid in room.players) {
     const p = room.players[pid];
+    let deathsFromFlu = 0;
+    let starvationLosses = 0;
 
     let neededFeed = 0;
     ASSET_CATALOG.forEach(item => {
-      neededFeed += (p.inventory[item.id] || []).length * item.feedCost;
+      const count = (p.inventory[item.id] || []).length;
+      neededFeed += count * item.feedCost;
     });
+
+    let medicineStock = p.medicine || 0;
 
     if (p.feedBags >= neededFeed) {
       p.feedBags -= neededFeed;
-      // All fed animals produce their respective item (Eggs, Honey, Wool, Golden Eggs, etc.)
+      
       ASSET_CATALOG.forEach(item => {
         const count = (p.inventory[item.id] || []).length;
         if (count > 0) {
-          const yieldCount = item.yieldPerAnimal || 1;
-          p.produce[item.produce] = (p.produce[item.produce] || 0) + (count * yieldCount);
+          const baseYield = item.yieldPerAnimal || 1;
+          const totalProduced = Math.max(1, Math.round(count * baseYield * produceYieldMult));
+          p.produce[item.produce] = (p.produce[item.produce] || 0) + totalProduced;
         }
       });
     } else {
@@ -390,16 +487,54 @@ function advanceDay(room) {
       ASSET_CATALOG.forEach(item => {
         const list = p.inventory[item.id] || [];
         const lost = Math.ceil(list.length * 0.5);
+        starvationLosses += lost;
         for (let i = 0; i < lost; i++) list.pop();
       });
     }
 
+    if (isFlu && currentEvent.deathRisk > 0) {
+      ASSET_CATALOG.forEach(item => {
+        const list = p.inventory[item.id] || [];
+        const surviving = [];
+        list.forEach(animal => {
+          if (medicineStock > 0) {
+            medicineStock--;
+            surviving.push(animal);
+          } else if (Math.random() > currentEvent.deathRisk) {
+            surviving.push(animal);
+          } else {
+            deathsFromFlu++;
+          }
+        });
+        p.inventory[item.id] = surviving;
+      });
+      p.medicine = medicineStock;
+    }
+
+    p.lastReport = {
+      round: room.round,
+      fluDeaths: deathsFromFlu,
+      starved: starvationLosses
+    };
+
     p.ready = false;
   }
 
+  if (room.event) {
+    room.event.remainingDays--;
+    if (room.event.remainingDays <= 0) {
+      room.event = null;
+    }
+  }
+
+  if (!room.event) {
+    room.event = pickRandomEvent();
+  }
+
+  room.feedPrice = BASE_FEED_PRICE * (room.event?.feedPriceMult || 1.0);
+
   room.round++;
-  // Reroll fluctuating market prices for all livestock and produce daily
-  room.market = randomizeMarket(room.market);
+  room.market = randomizeMarket(room.market, room.event);
 
   startRoomTimer(room);
   io.to(room.roomId).emit('room_update', sanitizeRoom(room));
@@ -414,10 +549,12 @@ function sanitizeRoom(room) {
       name: p.name,
       cash: p.cash,
       feedBags: p.feedBags,
+      medicine: p.medicine || 0,
       inventory: p.inventory,
       produce: p.produce,
       ready: p.ready,
-      connected: p.connected
+      connected: p.connected,
+      lastReport: p.lastReport
     };
   }
 
@@ -431,6 +568,8 @@ function sanitizeRoom(room) {
     dayDuration: Number(room.dayDuration) || 60,
     timeLeft: typeof room.timeLeft === 'number' ? room.timeLeft : (Number(room.dayDuration) || 60),
     winner: room.winner || null,
+    event: room.event,
+    feedPrice: room.feedPrice || BASE_FEED_PRICE,
     market: room.market,
     players: safePlayers
   };

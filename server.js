@@ -9,7 +9,6 @@ const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Catalog with explicit base pricing, dynamic bounds, and harvest yields
 const ASSET_CATALOG = [
   { id: 'chicken', name: 'Poultry Flock 🐔', basePrice: 100, feedCost: 1, produce: 'egg', produceName: 'Eggs 🥚', produceBasePrice: 15, yieldPerAnimal: 1, minPrice: 40, maxPrice: 200, prodMin: 6, prodMax: 35 },
   { id: 'apiary', name: 'Bee Hive 🐝', basePrice: 180, feedCost: 2, produce: 'honey', produceName: 'Raw Honey 🍯', produceBasePrice: 32, yieldPerAnimal: 1, minPrice: 80, maxPrice: 360, prodMin: 12, prodMax: 75 },
@@ -19,6 +18,23 @@ const ASSET_CATALOG = [
   { id: 'golden_goose', name: 'Golden Goose 🪿', basePrice: 750, feedCost: 6, produce: 'golden_egg', produceName: 'Golden Egg ✨', produceBasePrice: 160, yieldPerAnimal: 1, minPrice: 300, maxPrice: 1600, prodMin: 65, prodMax: 400 },
   { id: 'thoroughbred', name: 'Race Horse 🐴', basePrice: 1000, feedCost: 8, produce: 'trophy', produceName: 'Trophies 🏆', produceBasePrice: 220, yieldPerAnimal: 1, minPrice: 450, maxPrice: 2200, prodMin: 90, prodMax: 550 }
 ];
+
+const GOURMET_TIERS = [
+  { bonusPct: 10, mult: 1.10, weight: 50 },
+  { bonusPct: 30, mult: 1.30, weight: 25 },
+  { bonusPct: 45, mult: 1.45, weight: 15 },
+  { bonusPct: 60, mult: 1.60, weight: 10 }
+];
+
+function rollGourmetTier() {
+  const roll = Math.random() * 100;
+  let cumulative = 0;
+  for (const tier of GOURMET_TIERS) {
+    cumulative += tier.weight;
+    if (roll < cumulative) return tier;
+  }
+  return GOURMET_TIERS[0];
+}
 
 const EVENTS = [
   {
@@ -30,7 +46,7 @@ const EVENTS = [
     duration: 2,
     produceMult: 0.5,
     feedPriceMult: 1.0,
-    deathRisk: 0.35 // 35% chance per unmedicated animal to perish overnight
+    deathRisk: 0.35
   },
   {
     id: 'bumper_harvest',
@@ -110,15 +126,52 @@ function randomizeMarket(prevMarket = null, activeEvent = null) {
   return { animal, produce, deltas };
 }
 
-function pickRandomEvent(force = false) {
-  if (force || Math.random() < 0.75) {
+function pickRandomEvent(room = null, force = false) {
+  if (force) {
     const template = EVENTS[Math.floor(Math.random() * EVENTS.length)];
-    return {
+    const eventInstance = {
       ...template,
       instanceId: template.id + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
       remainingDays: template.duration
     };
+
+    if (eventInstance.id === 'gourmet_boom') {
+      const tier = rollGourmetTier();
+      eventInstance.marketProduceMult = tier.mult;
+      eventInstance.descEn = `High-end delicacies in demand! Produce sells for +${tier.bonusPct}% on the market!`;
+      eventInstance.descTh = `ความต้องการวัตถุดิบพรีเมียมล้นหลาม! ขายผลผลิตในตลาดได้ราคาสูงขึ้น +${tier.bonusPct}%!`;
+    }
+
+    return eventInstance;
   }
+
+  // If room is provided, respect cooldown strictly
+  if (room) {
+    if (room.currentCooldown > 0) {
+      room.currentCooldown--;
+      return null; // Enforce calm day
+    }
+  }
+
+  // 35% chance when off cooldown
+  if (Math.random() < 0.35) {
+    const template = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+    const eventInstance = {
+      ...template,
+      instanceId: template.id + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      remainingDays: template.duration
+    };
+
+    if (eventInstance.id === 'gourmet_boom') {
+      const tier = rollGourmetTier();
+      eventInstance.marketProduceMult = tier.mult;
+      eventInstance.descEn = `High-end delicacies in demand! Produce sells for +${tier.bonusPct}% on the market!`;
+      eventInstance.descTh = `ความต้องการวัตถุดิบพรีเมียมล้นหลาม! ขายผลผลิตในตลาดได้ราคาสูงขึ้น +${tier.bonusPct}%!`;
+    }
+
+    return eventInstance;
+  }
+
   return null;
 }
 
@@ -210,6 +263,8 @@ io.on('connection', (socket) => {
         baseMoney: 1000,
         targetCash: 5000,
         dayDuration: 60,
+        eventCooldownSetting: 2,
+        currentCooldown: 0,
         timeLeft: 60,
         event: null,
         feedPrice: BASE_FEED_PRICE,
@@ -264,18 +319,20 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('room_update', sanitizeRoom(room));
   });
 
-  socket.on('update_room_settings', ({ baseMoney, targetCash, dayDuration }) => {
+  socket.on('update_room_settings', ({ baseMoney, targetCash, dayDuration, eventCooldown }) => {
     const room = rooms[socket.roomId];
     if (!room || room.hostId !== socket.playerId || room.started) return;
 
     const base = Math.max(100, Number(baseMoney) || 1000);
     const goal = Math.max(base + 100, Number(targetCash) || 5000);
     const duration = Math.min(600, Math.max(10, Number(dayDuration) || 60));
+    const cd = Math.max(0, Math.min(10, Number(eventCooldown) ?? 2));
 
     room.baseMoney = base;
     room.targetCash = goal;
     room.dayDuration = duration;
     room.timeLeft = duration;
+    room.eventCooldownSetting = cd;
 
     Object.values(room.players).forEach(p => {
       p.cash = base;
@@ -292,8 +349,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Force an event on Day 1
-    room.event = pickRandomEvent(true);
+    room.event = pickRandomEvent(room, true);
     room.feedPrice = BASE_FEED_PRICE * (room.event?.feedPriceMult || 1.0);
     room.market = randomizeMarket(null, room.event);
 
@@ -520,15 +576,22 @@ function advanceDay(room) {
     p.ready = false;
   }
 
+  // --- REPLACE THIS BLOCK IN advanceDay ---
   if (room.event) {
     room.event.remainingDays--;
     if (room.event.remainingDays <= 0) {
       room.event = null;
+      // Start cooldown: +1 buffer so the player gets the exact number of full peaceful days
+      room.currentCooldown = Number(room.eventCooldownSetting ?? 2);
     }
+  } else {
+    // Only try to trigger a new event if there wasn't an event expiring this turn
+    room.event = pickRandomEvent(room);
   }
+  // ----------------------------------------
 
   if (!room.event) {
-    room.event = pickRandomEvent();
+    room.event = pickRandomEvent(room);
   }
 
   room.feedPrice = BASE_FEED_PRICE * (room.event?.feedPriceMult || 1.0);
@@ -566,6 +629,8 @@ function sanitizeRoom(room) {
     baseMoney: room.baseMoney,
     targetCash: room.targetCash,
     dayDuration: Number(room.dayDuration) || 60,
+    eventCooldownSetting: room.eventCooldownSetting ?? 2,
+    currentCooldown: room.currentCooldown || 0,
     timeLeft: typeof room.timeLeft === 'number' ? room.timeLeft : (Number(room.dayDuration) || 60),
     winner: room.winner || null,
     event: room.event,

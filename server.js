@@ -17,18 +17,6 @@ const ASSET_CATALOG = [
 ];
 
 const FEED_BAG_PRICE = 10;
-
-const QUEST_POOL = [
-  { id: 'q_chickens_10', title: 'Flock Master', desc: 'Own at least 10 Chickens', type: 'OWN_ANIMAL', target: 'chicken', amount: 10, rewardVP: 25, rewardCash: 300 },
-  { id: 'q_eggs_20', title: 'Egg Cartel', desc: 'Deliver 20 Eggs', type: 'DELIVER_PRODUCE', target: 'egg', amount: 20, rewardVP: 20, rewardCash: 400 },
-  { id: 'q_pigs_4', title: 'Truffle Hunter', desc: 'Own at least 4 Truffle Pigs', type: 'OWN_ANIMAL', target: 'pig', amount: 4, rewardVP: 30, rewardCash: 500 },
-  { id: 'q_truffles_10', title: 'Gourmet Feast', desc: 'Deliver 10 Truffles', type: 'DELIVER_PRODUCE', target: 'truffle', amount: 10, rewardVP: 35, rewardCash: 600 },
-  { id: 'q_cows_3', title: 'Dairy Giant', desc: 'Own at least 3 Dairy Cows', type: 'OWN_ANIMAL', target: 'dairy_cow', amount: 3, rewardVP: 35, rewardCash: 700 }, // <-- Make sure this is 'dairy_cow'
-  { id: 'q_milk_10', title: 'Milk Pipeline', desc: 'Deliver 10 Jugs of Milk', type: 'DELIVER_PRODUCE', target: 'milk', amount: 10, rewardVP: 40, rewardCash: 800 },
-  { id: 'q_horse_2', title: 'Stable Baron', desc: 'Own at least 2 Race Horses', type: 'OWN_ANIMAL', target: 'thoroughbred', amount: 2, rewardVP: 45, rewardCash: 1000 },
-  { id: 'q_trophies_5', title: 'Triple Crown', desc: 'Deliver 5 Trophies', type: 'DELIVER_PRODUCE', target: 'trophy', amount: 5, rewardVP: 50, rewardCash: 1200 }
-];
-
 const rooms = {};
 
 function randomizeMarket() {
@@ -43,8 +31,11 @@ function randomizeMarket() {
   return { animal, produce };
 }
 
-function getRandomQuests(count = 4) {
-  return [...QUEST_POOL].sort(() => 0.5 - Math.random()).slice(0, count);
+function checkWinCondition(room, player) {
+  if (!room.winner && player.cash >= room.targetCash) {
+    room.winner = player.name;
+    room.logs.unshift(`🏆 ${player.name} achieved financial victory with $${player.cash}!`);
+  }
 }
 
 io.on('connection', (socket) => {
@@ -61,9 +52,9 @@ io.on('connection', (socket) => {
         hostId: socket.id,
         started: false,
         round: 1,
-        targetVP: 100,
+        baseMoney: 1000,
+        targetCash: 5000,
         market: randomizeMarket(),
-        quests: getRandomQuests(4),
         players: {},
         logs: [`Room ${roomId} created.`]
       };
@@ -78,34 +69,50 @@ io.on('connection', (socket) => {
     room.players[socket.id] = {
       id: socket.id,
       name: playerName || `Player ${Object.keys(room.players).length + 1}`,
-      cash: 1000,
-      points: 0,
+      cash: room.baseMoney,
       feedBags: 15,
       inventory: { chicken: [], pig: [], dairy_cow: [], thoroughbred: [] },
       produce: { egg: 0, truffle: 0, milk: 0, trophy: 0 },
-      completedQuests: [],
       ready: false
     };
 
     io.to(roomId).emit('room_update', sanitizeRoom(room));
   });
 
+  socket.on('update_room_settings', ({ baseMoney, targetCash }) => {
+    const room = rooms[socket.roomId];
+    if (!room || room.hostId !== socket.id || room.started) return;
+
+    const base = Math.max(100, Number(baseMoney) || 1000);
+    const goal = Math.max(base + 100, Number(targetCash) || 5000);
+
+    room.baseMoney = base;
+    room.targetCash = goal;
+
+    Object.values(room.players).forEach(p => {
+      p.cash = base;
+    });
+
+    room.logs.unshift(`Host adjusted parameters: Starting Cash $${base}, Goal $${goal}.`);
+    io.to(room.roomId).emit('room_update', sanitizeRoom(room));
+  });
+
   socket.on('start_game', () => {
     const room = rooms[socket.roomId];
     if (!room || room.hostId !== socket.id) return;
-    if (Object.keys(room.players).length < 2) {
-      socket.emit('error_msg', 'Need at least 2 players to start.');
+    if (Object.keys(room.players).length < 1) {
+      socket.emit('error_msg', 'Need at least 1 player to start.');
       return;
     }
     room.started = true;
-    room.logs.unshift('Game started! Buy feed bags, breed livestock, and fulfill quests!');
+    room.logs.unshift(`Game started! First player to reach $${room.targetCash} wins.`);
     io.to(room.roomId).emit('room_update', sanitizeRoom(room));
   });
 
   // BUY FEED
   socket.on('buy_feed', ({ count }) => {
     const room = rooms[socket.roomId];
-    if (!room || !room.started) return;
+    if (!room || !room.started || room.winner) return;
     const player = room.players[socket.id];
     if (!player || player.ready) return;
 
@@ -122,7 +129,7 @@ io.on('connection', (socket) => {
   // BUY ANIMALS
   socket.on('buy_animal', ({ itemId, count }) => {
     const room = rooms[socket.roomId];
-    if (!room || !room.started) return;
+    if (!room || !room.started || room.winner) return;
     const player = room.players[socket.id];
     if (!player || player.ready) return;
 
@@ -134,7 +141,7 @@ io.on('connection', (socket) => {
     if (player.cash >= totalCost) {
       player.cash -= totalCost;
       if (!player.inventory[itemId]) player.inventory[itemId] = [];
-      
+
       const currentRound = Number(room.round);
       for (let i = 0; i < qty; i++) {
         player.inventory[itemId].push({
@@ -150,7 +157,7 @@ io.on('connection', (socket) => {
   // SELL ANIMALS
   socket.on('sell_animal', ({ itemId, count }) => {
     const room = rooms[socket.roomId];
-    if (!room || !room.started) return;
+    if (!room || !room.started || room.winner) return;
     const player = room.players[socket.id];
     if (!player || player.ready) return;
 
@@ -168,6 +175,8 @@ io.on('connection', (socket) => {
       const profit = totalRevenue - totalBoughtAt;
       player.cash += totalRevenue;
       room.logs.unshift(`${player.name} sold ${qty}x ${itemId} for $${totalRevenue} (P/L: ${profit >= 0 ? '+' : ''}$${profit}).`);
+      
+      checkWinCondition(room, player);
       io.to(room.roomId).emit('room_update', sanitizeRoom(room));
     }
   });
@@ -175,7 +184,7 @@ io.on('connection', (socket) => {
   // SELL PRODUCE
   socket.on('sell_produce', ({ produceId, count }) => {
     const room = rooms[socket.roomId];
-    if (!room || !room.started) return;
+    if (!room || !room.started || room.winner) return;
     const player = room.players[socket.id];
     if (!player || player.ready) return;
 
@@ -188,61 +197,16 @@ io.on('connection', (socket) => {
       player.produce[produceId] -= qty;
       player.cash += revenue;
       room.logs.unshift(`${player.name} sold ${qty}x ${produceId} for $${revenue}.`);
+      
+      checkWinCondition(room, player);
       io.to(room.roomId).emit('room_update', sanitizeRoom(room));
     }
   });
 
-  // COMPLETE QUEST (Strict Check)
-  socket.on('claim_quest', ({ questId }) => {
-    const room = rooms[socket.roomId];
-    if (!room || !room.started) return;
-    const player = room.players[socket.id];
-    if (!player || player.ready) return;
-
-    const quest = room.quests.find(q => q.id === questId);
-    if (!quest || player.completedQuests.includes(questId)) return;
-
-    const currentRound = Number(room.round);
-
-    if (quest.type === 'OWN_ANIMAL') {
-      const targetKey = quest.targetId || quest.target;
-      const allAnimals = player.inventory[targetKey] || [];
-      
-      // Animals bought strictly before the current day count as settled
-      const settledAnimals = allAnimals.filter(a => {
-        const roundBought = typeof a.boughtRound === 'number' ? a.boughtRound : 1;
-        return roundBought < currentRound;
-      });
-
-      if (settledAnimals.length < quest.amount) {
-        socket.emit('error_msg', `Cannot claim yet! You have ${settledAnimals.length}/${quest.amount} settled animals. Newly bought animals must survive overnight!`);
-        return;
-      }
-    } else if (quest.type === 'DELIVER_PRODUCE') {
-      const have = player.produce[quest.target] || 0;
-      if (have < quest.amount) {
-        socket.emit('error_msg', `Need ${quest.amount}x ${quest.target}! You have ${have}.`);
-        return;
-      }
-      player.produce[quest.target] -= quest.amount;
-    }
-
-    player.completedQuests.push(questId);
-    player.points += quest.rewardVP;
-    player.cash += quest.rewardCash;
-    room.logs.unshift(`🎯 ${player.name} completed "${quest.title}"! (+${quest.rewardVP} VP, +$${quest.rewardCash})`);
-
-    if (player.points >= room.targetVP) {
-      room.winner = player.name;
-    }
-
-    io.to(room.roomId).emit('room_update', sanitizeRoom(room));
-  });
-
-  // READY / END DAY
+  // READY / ADVANCE CYCLE
   socket.on('toggle_ready', () => {
     const room = rooms[socket.roomId];
-    if (!room || !room.started) return;
+    if (!room || !room.started || room.winner) return;
     const player = room.players[socket.id];
     if (!player) return;
 
@@ -269,7 +233,7 @@ io.on('connection', (socket) => {
 });
 
 function advanceDay(room) {
-  room.logs.unshift(`=== DAY ${room.round} ENDS: FEEDING & PRODUCTION ===`);
+  room.logs.unshift(`=== DAY ${room.round} ENDS: FEEDING & HARVEST ===`);
 
   for (const pid in room.players) {
     const p = room.players[pid];
@@ -281,17 +245,17 @@ function advanceDay(room) {
 
     if (p.feedBags >= neededFeed) {
       p.feedBags -= neededFeed;
-      room.logs.unshift(`${p.name} fed livestock using ${neededFeed} food bags.`);
+      room.logs.unshift(`${p.name} maintained herds using ${neededFeed} food bags.`);
 
       ASSET_CATALOG.forEach(item => {
         const count = (p.inventory[item.id] || []).length;
         if (count > 0) {
           p.produce[item.produce] = (p.produce[item.produce] || 0) + count;
-          room.logs.unshift(`${p.name}'s animals produced +${count}x ${item.produceName}!`);
+          room.logs.unshift(`${p.name}'s livestock produced +${count}x ${item.produceName}!`);
         }
       });
     } else {
-      room.logs.unshift(`⚠️ ${p.name} had insufficient feed (${p.feedBags}/${neededFeed})! Livestock starved!`);
+      room.logs.unshift(`⚠️ ${p.name} had insufficient feed (${p.feedBags}/${neededFeed})! Half the herd perished!`);
       p.feedBags = 0;
 
       ASSET_CATALOG.forEach(item => {
@@ -299,7 +263,7 @@ function advanceDay(room) {
         const lost = Math.ceil(list.length * 0.5);
         for (let i = 0; i < lost; i++) list.pop();
         if (lost > 0) {
-          room.logs.unshift(`${p.name} lost ${lost}x ${item.name} to hunger!`);
+          room.logs.unshift(`${p.name} lost ${lost}x ${item.name} to famine!`);
         }
       });
     }
@@ -309,12 +273,6 @@ function advanceDay(room) {
 
   room.round++;
   room.market = randomizeMarket();
-
-  if (room.round % 3 === 0) {
-    room.quests = getRandomQuests(4);
-    room.logs.unshift(`📜 The Agriculture Bureau posted new Quests!`);
-  }
-
   room.logs.unshift(`☀️ Day ${room.round} begins!`);
   io.to(room.roomId).emit('room_update', sanitizeRoom(room));
 }
@@ -325,14 +283,14 @@ function sanitizeRoom(room) {
     hostId: room.hostId,
     started: room.started,
     round: room.round,
-    targetVP: room.targetVP,
+    baseMoney: room.baseMoney,
+    targetCash: room.targetCash,
     winner: room.winner || null,
     market: room.market,
-    quests: room.quests,
     players: room.players,
     logs: room.logs
   };
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Game server active on port ${PORT}`));

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -19,86 +20,268 @@
       --border: #334155;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-    body { background-color: var(--bg); color: var(--text); padding: 12px; padding-bottom: 90px; }
-    .container { max-width: 1100px; margin: 0 auto; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 12px;
+      padding-bottom: 90px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
 
     header {
       position: relative;
       text-align: center;
       margin-bottom: 14px;
     }
-    header h1 { font-size: 1.5rem; color: var(--primary); }
-    header p { font-size: 0.85rem; color: var(--text-muted); }
+
+    header h1 {
+      font-size: 1.5rem;
+      color: var(--primary);
+    }
+
+    header p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
 
     .lang-toggle {
-      position: absolute; right: 0; top: 0;
-      background: #1e293b; border: 1px solid var(--border);
-      color: var(--text); padding: 6px 12px; border-radius: 6px;
-      font-weight: bold; cursor: pointer; display: flex; align-items: center;
-      gap: 6px; font-size: 0.85rem;
+      position: absolute;
+      right: 0;
+      top: 0;
+      background: #1e293b;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
     }
-    .lang-toggle:hover { border-color: var(--primary); }
 
-    .card { background: var(--panel); border-radius: 12px; padding: 14px; margin-bottom: 12px; border: 1px solid var(--border); }
-    
+    .lang-toggle:hover {
+      border-color: var(--primary);
+    }
+
+    .card {
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+    }
+
     .btn {
-      background: var(--primary); color: #000; font-weight: 700; border: none;
-      padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 0.9rem;
-      display: inline-flex; align-items: center; justify-content: center;
-    }
-    .btn:active { transform: scale(0.97); }
-    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
-    .btn-action { background: var(--accent); }
-    .btn-success { background: var(--success); color: #fff; }
-    .btn-danger { background: var(--danger); color: #fff; }
-    .btn-stepper { width: 34px; height: 34px; font-size: 1.1rem; padding: 0; }
-    .btn-end { background: var(--accent); font-size: 1rem; width: 100%; padding: 12px; }
-
-    input[type="text"], input[type="number"] {
-      width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border);
-      background: #090e19; color: #fff; margin-bottom: 8px; font-size: 1rem;
+      background: var(--primary);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .config-group { display: flex; gap: 10px; margin-bottom: 10px; }
-    .config-field { flex: 1; }
-    .config-field label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+    .btn:active {
+      transform: scale(0.97);
+    }
 
-    .hud-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
-    .hud-box { background: #0f172a; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
-    .hud-box .label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
-    .hud-box .val { font-size: 1.15rem; font-weight: bold; margin-top: 2px; }
+    .btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      transform: none;
+    }
 
-    .columns { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .btn-action {
+      background: var(--accent);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .btn-stepper {
+      width: 34px;
+      height: 34px;
+      font-size: 1.1rem;
+      padding: 0;
+    }
+
+    .btn-end {
+      background: var(--accent);
+      font-size: 1rem;
+      width: 100%;
+      padding: 12px;
+    }
+
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #090e19;
+      color: #fff;
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+
+    .config-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .config-field {
+      flex: 1;
+    }
+
+    .config-field label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .hud-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .hud-box {
+      background: #0f172a;
+      padding: 8px 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .hud-box .label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .hud-box .val {
+      font-size: 1.15rem;
+      font-weight: bold;
+      margin-top: 2px;
+    }
+
+    .columns {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
     @media (min-width: 900px) {
-      .columns { grid-template-columns: 1fr 1fr; }
-      body { padding-bottom: 20px; }
-      .mobile-sticky-bar { display: none !important; }
+      .columns {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      body {
+        padding-bottom: 20px;
+      }
+
+      .mobile-sticky-bar {
+        display: none !important;
+      }
     }
 
     .item-row {
-      background: var(--panel-item); padding: 12px; border-radius: 8px;
-      margin-bottom: 8px; border: 1px solid #1e293b;
+      background: var(--panel-item);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border: 1px solid #1e293b;
     }
 
-    .stepper-wrap { display: flex; align-items: center; gap: 6px; }
+    .stepper-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-    .player-tag { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; margin: 2px; }
-    .ready-tag { background: rgba(16, 185, 129, 0.2); border: 1px solid var(--success); color: var(--success); }
-    .waiting-tag { background: rgba(245, 158, 11, 0.2); border: 1px solid var(--accent); color: var(--accent); }
+    .player-tag {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      margin: 2px;
+    }
 
-    .profit-pos { color: var(--success); font-weight: bold; }
-    .profit-neg { color: var(--danger); font-weight: bold; }
+    .ready-tag {
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
 
-    .logs { background: #070d19; padding: 10px; border-radius: 8px; font-size: 0.8rem; height: 130px; overflow-y: auto; color: var(--text-muted); }
+    .waiting-tag {
+      background: rgba(245, 158, 11, 0.2);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+    }
+
+    .profit-pos {
+      color: var(--success);
+      font-weight: bold;
+    }
+
+    .profit-neg {
+      color: var(--danger);
+      font-weight: bold;
+    }
+
+    .logs {
+      background: #070d19;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      height: 130px;
+      overflow-y: auto;
+      color: var(--text-muted);
+    }
 
     .mobile-sticky-bar {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      background: #090e1a; border-top: 1px solid var(--border);
-      padding: 10px 14px; display: flex; gap: 10px; align-items: center; z-index: 99;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #090e1a;
+      border-top: 1px solid var(--border);
+      padding: 10px 14px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      z-index: 99;
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <header>
@@ -120,9 +303,10 @@
     <!-- Waiting Room / Match Config -->
     <div id="screen-waiting" class="card" style="display: none;">
       <h2><span id="ui-room-label">Room</span>: <span id="waiting-room-code" style="color: var(--primary)"></span></h2>
-      
+
       <!-- Host Controls -->
-      <div id="host-settings" style="display: none; margin: 12px 0; border: 1px dashed var(--border); padding: 12px; border-radius: 8px;">
+      <div id="host-settings"
+        style="display: none; margin: 12px 0; border: 1px dashed var(--border); padding: 12px; border-radius: 8px;">
         <h4 style="margin-bottom: 8px; color: var(--accent);" id="ui-host-title">Host Game Rules</h4>
         <div class="config-group">
           <div class="config-field">
@@ -140,7 +324,8 @@
       <div id="client-settings-view" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;"></div>
 
       <div id="waiting-player-list" style="margin: 10px 0;"></div>
-      <button id="btn-start" class="btn btn-action" style="display:none; width:100%;" onclick="startGame()">Start Match</button>
+      <button id="btn-start" class="btn btn-action" style="display:none; width:100%;" onclick="startGame()">Start
+        Match</button>
       <span id="waiting-msg" style="color: var(--text-muted); font-size: 0.9rem;">Waiting for host to start...</span>
     </div>
 
@@ -151,7 +336,7 @@
           <h3><span id="ui-day-label">Day</span> <span id="hud-round">1</span></h3>
           <div id="ready-status-container"></div>
         </div>
-        
+
         <div class="hud-grid">
           <div class="hud-box">
             <div class="label" id="ui-label-cash">Balance / Goal</div>
@@ -173,12 +358,15 @@
       <div class="columns">
         <!-- Market -->
         <div class="card">
-          <h3 style="color: var(--primary); margin-bottom: 10px;" id="ui-market-title">Marketplace: Buy Animals & Feed</h3>
-          
-          <div class="item-row" style="display:flex; justify-content:space-between; align-items:center; background:#16243b;">
+          <h3 style="color: var(--primary); margin-bottom: 10px;" id="ui-market-title">Marketplace: Buy Animals & Feed
+          </h3>
+
+          <div class="item-row"
+            style="display:flex; justify-content:space-between; align-items:center; background:#16243b;">
             <div>
               <strong id="ui-feedbags-name">Feed Bags 🌾 ($10 ea)</strong>
-              <div style="font-size:0.75rem; color:var(--text-muted);" id="ui-feedbags-desc">Feed your herds to gather produce!</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);" id="ui-feedbags-desc">Feed your herds to gather
+                produce!</div>
             </div>
             <div class="stepper-wrap">
               <button class="btn btn-stepper" onclick="stepFeed(-5)">-5</button>
@@ -196,12 +384,14 @@
         <!-- Inventory -->
         <div class="card">
           <h3 style="color: var(--primary); margin-bottom: 10px;" id="ui-barn-title">Your Barn: Livestock & Harvest</h3>
-          
-          <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 6px;" id="ui-holdings-title">Owned Livestock</h4>
+
+          <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 6px;" id="ui-holdings-title">Owned
+            Livestock</h4>
           <div id="inventory-animals-list"></div>
 
           <div style="margin-top: 14px;">
-            <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 6px;" id="ui-produce-title">Harvest Storage</h4>
+            <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 6px;" id="ui-produce-title">Harvest
+              Storage</h4>
             <div id="produce-list"></div>
           </div>
         </div>
@@ -249,6 +439,7 @@
         feedBagsName: 'Feed Bags 🌾 ($10 ea)',
         feedBagsDesc: 'Feed herds overnight to generate produce.',
         buyBtn: 'Buy',
+        cantBuy: "Can't Buy",
         eatsText: 'Eats',
         feedPerDay: 'feed/day',
         marketPriceText: 'Market',
@@ -307,6 +498,7 @@
         feedBagsName: 'ถุงอาหารสัตว์ 🌾 (ถุงละ $10)',
         feedBagsDesc: 'ให้อาหารสัตว์ข้ามคืนเพื่อสร้างผลผลิต',
         buyBtn: 'ซื้อ',
+        cantBuy: 'ซื้อไม่ได้',
         eatsText: 'กิน',
         feedPerDay: 'ถุง/วัน',
         marketPriceText: 'ราคาตลาด',
@@ -419,6 +611,22 @@
     function stepFeed(delta) {
       feedOrderCount = Math.max(1, feedOrderCount + delta);
       document.getElementById('buy-feed-count').innerText = feedOrderCount;
+      updateFeedBuyButton();
+    }
+
+    function updateFeedBuyButton() {
+      const me = roomState?.players[socket.id];
+      const btn = document.getElementById('ui-buy-feed-btn');
+      if (!btn || !me) return;
+
+      const cost = feedOrderCount * 10;
+      const canAfford = me.cash >= cost;
+      const isLocked = me.ready || Boolean(roomState.winner);
+
+      btn.disabled = !canAfford || isLocked;
+      btn.innerText = canAfford
+        ? `${t('buyBtn')} ($${cost})`
+        : `${t('cantBuy')} ($${cost})`;
     }
 
     function buyFeed() {
@@ -550,10 +758,11 @@
           const marketAnimal = roomState?.market?.animal || {};
           const fallbackPrices = { chicken: 100, pig: 250, dairy_cow: 500, thoroughbred: 1000 };
           const price = marketAnimal[item.id] || fallbackPrices[item.id] || 100;
-          
+
           const count = buySteppers[item.id] || 1;
           const total = price * count;
           const animalName = I18N[currentLang].assets[item.id] || item.id;
+          const canAfford = me.cash >= total;
 
           const row = document.createElement('div');
           row.className = 'item-row';
@@ -563,24 +772,29 @@
           row.style.marginTop = '8px';
 
           row.innerHTML = `
-            <div>
-              <strong style="font-size: 1rem;">${animalName}</strong>
-              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
-                ${t('eatsText')}: <b>${item.feedCost} ${t('feedPerDay')}</b> | ${t('marketPriceText')}: <b style="color:var(--primary);">$${price}</b>
-              </div>
-            </div>
-            <div class="stepper-wrap">
-              <button class="btn btn-stepper" onclick="stepBuy('${item.id}', -1)" ${isLocked ? 'disabled' : ''}>-</button>
-              <span style="font-weight:bold; min-width:22px; text-align:center;">${count}</span>
-              <button class="btn btn-stepper" onclick="stepBuy('${item.id}', 1)" ${isLocked ? 'disabled' : ''}>+</button>
-              <button class="btn btn-success" onclick="buyAnimal('${item.id}')" ${me.cash < total || isLocked ? 'disabled' : ''}>
-                ${t('buyBtn')} ($${total})
-              </button>
-            </div>
-          `;
+      <div>
+        <strong style="font-size: 1rem;">${animalName}</strong>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+          ${t('eatsText')}: <b>${item.feedCost} ${t('feedPerDay')}</b> | ${t('marketPriceText')}: <b style="color:var(--primary);">$${price}</b>
+        </div>
+      </div>
+      <div class="stepper-wrap">
+        <button class="btn btn-stepper" onclick="stepBuy('${item.id}', -1)" ${isLocked ? 'disabled' : ''}>-</button>
+        <span style="font-weight:bold; min-width:22px; text-align:center;">${count}</span>
+        <button class="btn btn-stepper" onclick="stepBuy('${item.id}', 1)" ${isLocked ? 'disabled' : ''}>+</button>
+        <button class="btn ${canAfford ? 'btn-success' : 'btn-danger'}" 
+                onclick="buyAnimal('${item.id}')" 
+                ${!canAfford || isLocked ? 'disabled' : ''}>
+          ${canAfford ? t('buyBtn') : t('cantBuy')} ($${total})
+        </button>
+      </div>
+    `;
           mDiv.appendChild(row);
         });
       }
+
+      // Ensure the feed button state syncs on each UI refresh
+      updateFeedBuyButton();
 
       // Render Livestock Holdings
       const aDiv = document.getElementById('inventory-animals-list');
@@ -673,4 +887,5 @@
     applyLanguageStatic();
   </script>
 </body>
+
 </html>

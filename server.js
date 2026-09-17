@@ -9,11 +9,15 @@ const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Catalog with explicit base pricing, dynamic bounds, and harvest yields
 const ASSET_CATALOG = [
-  { id: 'chicken', name: 'Poultry Flock 🐔', basePrice: 100, feedCost: 1, produce: 'egg', produceName: 'Eggs 🥚', produceBasePrice: 15 },
-  { id: 'pig', name: 'Truffle Pig 🐷', basePrice: 250, feedCost: 2, produce: 'truffle', produceName: 'Truffles 🍄', produceBasePrice: 45 },
-  { id: 'dairy_cow', name: 'Dairy Cow 🐮', basePrice: 500, feedCost: 4, produce: 'milk', produceName: 'Milk 🥛', produceBasePrice: 95 },
-  { id: 'thoroughbred', name: 'Race Horse 🐴', basePrice: 1000, feedCost: 8, produce: 'trophy', produceName: 'Trophies 🏆', produceBasePrice: 220 }
+  { id: 'chicken', name: 'Poultry Flock 🐔', basePrice: 100, feedCost: 1, produce: 'egg', produceName: 'Eggs 🥚', produceBasePrice: 15, yieldPerAnimal: 1, minPrice: 40, maxPrice: 200, prodMin: 6, prodMax: 35 },
+  { id: 'apiary', name: 'Bee Hive 🐝', basePrice: 180, feedCost: 2, produce: 'honey', produceName: 'Raw Honey 🍯', produceBasePrice: 32, yieldPerAnimal: 1, minPrice: 80, maxPrice: 360, prodMin: 12, prodMax: 75 },
+  { id: 'pig', name: 'Truffle Pig 🐷', basePrice: 250, feedCost: 2, produce: 'truffle', produceName: 'Truffles 🍄', produceBasePrice: 45, yieldPerAnimal: 1, minPrice: 110, maxPrice: 500, prodMin: 18, prodMax: 110 },
+  { id: 'sheep', name: 'Angora Sheep 🐑', basePrice: 380, feedCost: 3, produce: 'wool', produceName: 'Fine Wool 🧶', produceBasePrice: 70, yieldPerAnimal: 1, minPrice: 160, maxPrice: 750, prodMin: 28, prodMax: 160 },
+  { id: 'dairy_cow', name: 'Dairy Cow 🐮', basePrice: 500, feedCost: 4, produce: 'milk', produceName: 'Fresh Milk 🥛', produceBasePrice: 95, yieldPerAnimal: 1, minPrice: 220, maxPrice: 1000, prodMin: 40, prodMax: 220 },
+  { id: 'golden_goose', name: 'Golden Goose 🪿', basePrice: 750, feedCost: 6, produce: 'golden_egg', produceName: 'Golden Egg ✨', produceBasePrice: 160, yieldPerAnimal: 1, minPrice: 300, maxPrice: 1600, prodMin: 65, prodMax: 400 },
+  { id: 'thoroughbred', name: 'Race Horse 🐴', basePrice: 1000, feedCost: 8, produce: 'trophy', produceName: 'Trophies 🏆', produceBasePrice: 220, yieldPerAnimal: 1, minPrice: 450, maxPrice: 2200, prodMin: 90, prodMax: 550 }
 ];
 
 const FEED_BAG_PRICE = 10;
@@ -23,16 +27,38 @@ const rooms = {};
 const disconnectTimers = new Map();
 const roomTickers = new Map();
 
-function randomizeMarket() {
+// Swings price between -35% and +45% with mean reversion toward baseline
+function calculateBouncingPrice(currentVal, baseVal, minVal, maxVal) {
+  const previous = currentVal || baseVal;
+  const meanReversion = (baseVal - previous) * 0.15;
+  const swing = 1 + (Math.random() * 0.8 - 0.35);
+  let next = Math.round(previous * swing + meanReversion);
+  next = Math.max(minVal, Math.min(maxVal, next));
+
+  const pctChange = Math.round(((next - previous) / previous) * 100);
+  return { price: next, pctChange };
+}
+
+function randomizeMarket(prevMarket = null) {
   const animal = {};
   const produce = {};
+  const deltas = { animal: {}, produce: {} };
+
   ASSET_CATALOG.forEach(item => {
-    const swingA = 0.75 + Math.random() * 0.65;
-    const swingP = 0.70 + Math.random() * 0.75;
-    animal[item.id] = Math.round(item.basePrice * swingA);
-    produce[item.produce] = Math.round(item.produceBasePrice * swingP);
+    const prevA = prevMarket?.animal?.[item.id];
+    const prevP = prevMarket?.produce?.[item.produce];
+
+    const resA = calculateBouncingPrice(prevA, item.basePrice, item.minPrice, item.maxPrice);
+    const resP = calculateBouncingPrice(prevP, item.produceBasePrice, item.prodMin, item.prodMax);
+
+    animal[item.id] = resA.price;
+    deltas.animal[item.id] = resA.pctChange;
+
+    produce[item.produce] = resP.price;
+    deltas.produce[item.produce] = resP.pctChange;
   });
-  return { animal, produce };
+
+  return { animal, produce, deltas };
 }
 
 function checkWinCondition(room, player) {
@@ -137,11 +163,24 @@ io.on('connection', (socket) => {
       existing.connected = true;
       clearPlayerTimer(pId);
       if (playerName) existing.name = playerName;
+
+      ASSET_CATALOG.forEach(a => {
+        if (!existing.inventory[a.id]) existing.inventory[a.id] = [];
+        if (typeof existing.produce[a.produce] !== 'number') existing.produce[a.produce] = 0;
+      });
     } else {
       if (room.started) {
         socket.emit('error_msg', 'Game is already running.');
         return;
       }
+
+      const emptyInventory = {};
+      const emptyProduce = {};
+
+      ASSET_CATALOG.forEach(a => {
+        emptyInventory[a.id] = [];
+        emptyProduce[a.produce] = 0;
+      });
 
       room.players[pId] = {
         id: pId,
@@ -149,8 +188,8 @@ io.on('connection', (socket) => {
         name: playerName || `Player ${Object.keys(room.players).length + 1}`,
         cash: room.baseMoney,
         feedBags: 15,
-        inventory: { chicken: [], pig: [], dairy_cow: [], thoroughbred: [] },
-        produce: { egg: 0, truffle: 0, milk: 0, trophy: 0 },
+        inventory: emptyInventory,
+        produce: emptyProduce,
         ready: false,
         connected: true
       };
@@ -215,8 +254,10 @@ io.on('connection', (socket) => {
     const player = room.players[socket.playerId];
     if (!player || player.ready) return;
 
-    const marketAnimal = room.market?.animal || {};
-    const price = marketAnimal[itemId] || 100;
+    const asset = ASSET_CATALOG.find(a => a.id === itemId);
+    if (!asset) return;
+
+    const price = room.market?.animal?.[itemId] || asset.basePrice;
     const qty = Math.max(1, count || 1);
     const totalCost = price * qty;
 
@@ -241,11 +282,14 @@ io.on('connection', (socket) => {
     const player = room.players[socket.playerId];
     if (!player || player.ready) return;
 
+    const asset = ASSET_CATALOG.find(a => a.id === itemId);
+    if (!asset) return;
+
     const units = player.inventory[itemId] || [];
     const qty = Math.min(units.length, Math.max(1, count || 1));
 
     if (qty > 0) {
-      const currentPrice = room.market.animal[itemId] || 100;
+      const currentPrice = room.market?.animal?.[itemId] || asset.basePrice;
       for (let i = 0; i < qty; i++) {
         units.pop();
       }
@@ -261,11 +305,14 @@ io.on('connection', (socket) => {
     const player = room.players[socket.playerId];
     if (!player || player.ready) return;
 
+    const asset = ASSET_CATALOG.find(a => a.produce === produceId);
+    if (!asset) return;
+
     const available = player.produce[produceId] || 0;
     const qty = Math.min(available, Math.max(1, count || 1));
 
     if (qty > 0) {
-      const unitPrice = room.market.produce[produceId] || 15;
+      const unitPrice = room.market?.produce?.[produceId] || asset.produceBasePrice;
       player.produce[produceId] -= qty;
       player.cash += qty * unitPrice;
       checkWinCondition(room, player);
@@ -305,7 +352,7 @@ io.on('connection', (socket) => {
     if (!room || !socket.playerId) return;
 
     const player = room.players[socket.playerId];
-    if (!player) return;
+    if (!player || player.socketId !== socket.id) return;
 
     player.connected = false;
 
@@ -330,10 +377,12 @@ function advanceDay(room) {
 
     if (p.feedBags >= neededFeed) {
       p.feedBags -= neededFeed;
+      // All fed animals produce their respective item (Eggs, Honey, Wool, Golden Eggs, etc.)
       ASSET_CATALOG.forEach(item => {
         const count = (p.inventory[item.id] || []).length;
         if (count > 0) {
-          p.produce[item.produce] = (p.produce[item.produce] || 0) + count;
+          const yieldCount = item.yieldPerAnimal || 1;
+          p.produce[item.produce] = (p.produce[item.produce] || 0) + (count * yieldCount);
         }
       });
     } else {
@@ -349,7 +398,8 @@ function advanceDay(room) {
   }
 
   room.round++;
-  room.market = randomizeMarket();
+  // Reroll fluctuating market prices for all livestock and produce daily
+  room.market = randomizeMarket(room.market);
 
   startRoomTimer(room);
   io.to(room.roomId).emit('room_update', sanitizeRoom(room));

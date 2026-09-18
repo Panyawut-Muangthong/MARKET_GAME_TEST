@@ -147,7 +147,7 @@ function pickRandomEvent(room = null, force = false) {
 
   // If room is provided, respect cooldown strictly
   if (room) {
-    if (room.currentCooldown > 0) {
+    if (room.currentCooldown > -1) {
       room.currentCooldown--;
       return null; // Enforce calm day
     }
@@ -576,7 +576,6 @@ function advanceDay(room) {
     p.ready = false;
   }
 
-  // --- REPLACE THIS BLOCK IN advanceDay ---
   if (room.event) {
     room.event.remainingDays--;
     if (room.event.remainingDays <= 0) {
@@ -588,11 +587,8 @@ function advanceDay(room) {
     // Only try to trigger a new event if there wasn't an event expiring this turn
     room.event = pickRandomEvent(room);
   }
+  
   // ----------------------------------------
-
-  if (!room.event) {
-    room.event = pickRandomEvent(room);
-  }
 
   room.feedPrice = BASE_FEED_PRICE * (room.event?.feedPriceMult || 1.0);
 

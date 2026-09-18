@@ -65,13 +65,13 @@
     .config-field { flex: 1; min-width: 130px; }
     .config-field label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
 
-    .hud-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 8px; }
+    .hud-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
     @media (max-width: 600px) {
-      .hud-grid { grid-template-columns: repeat(2, 1fr) 1fr; }
+      .hud-grid { grid-template-columns: repeat(2, 1fr); }
     }
     .hud-box { background: #0f172a; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
     .hud-box .label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
-    .hud-box .val { font-size: 1.1rem; font-weight: bold; margin-top: 2px; }
+    .hud-box .val { font-size: 1.05rem; font-weight: bold; margin-top: 2px; }
 
     .event-banner {
       background: linear-gradient(90deg, rgba(239, 68, 68, 0.25), rgba(245, 158, 11, 0.25));
@@ -121,6 +121,9 @@
       <button class="btn-leave" id="btn-leave" style="display: none;" onclick="leaveRoom()">
         🚪 <span id="ui-leave-btn">Leave Game</span>
       </button>
+      <button class="lang-toggle" id="bgm-toggle-btn" onclick="toggleBGM()">
+        🎵 <span id="bgm-btn-text">BGM: OFF</span>
+      </button>
       <button class="lang-toggle" onclick="toggleLanguage()">
         🌐 <span id="lang-btn-text">TH (ภาษาไทย)</span>
       </button>
@@ -128,7 +131,7 @@
 
     <header>
       <h1 id="ui-title">Market Tycoon: Capital Race</h1>
-      <p id="ui-subtitle">Trade livestock, manage feed, sell harvest, and race to the financial goal!</p>
+      <p id="ui-subtitle">Trade livestock, manage feed, sell harvest, and hit all three goals to win!</p>
     </header>
 
     <div id="screen-lobby" class="card">
@@ -150,6 +153,14 @@
           <div class="config-field">
             <label id="ui-lbl-targetcash">Winning Target Cash ($)</label>
             <input type="number" id="input-target-cash" value="5000" min="200" step="500" onchange="syncSettings()" />
+          </div>
+          <div class="config-field">
+            <label id="ui-lbl-targetanimals">Target Animals Owned</label>
+            <input type="number" id="input-target-animals" value="10" min="1" step="1" onchange="syncSettings()" />
+          </div>
+          <div class="config-field">
+            <label id="ui-lbl-targetproduce">Target Produce Sold</label>
+            <input type="number" id="input-target-produce" value="20" min="1" step="1" onchange="syncSettings()" />
           </div>
           <div class="config-field">
             <label id="ui-lbl-duration">Day Duration (Seconds)</label>
@@ -191,6 +202,14 @@
           <div class="hud-box">
             <div class="label" id="ui-label-cash">Balance / Goal</div>
             <div class="val" id="hud-cash" style="color: var(--success);">$1000 / $5000</div>
+          </div>
+          <div class="hud-box">
+            <div class="label" id="ui-label-animals">Animals / Target</div>
+            <div class="val" id="hud-animals" style="color: #fbbf24;">0 / 10</div>
+          </div>
+          <div class="hud-box">
+            <div class="label" id="ui-label-prodsold">Produce Sold / Goal</div>
+            <div class="val" id="hud-prodsold" style="color: #34d399;">0 / 20</div>
           </div>
           <div class="hud-box">
             <div class="label" id="ui-label-feed">Feed Bags</div>
@@ -262,20 +281,24 @@
   <div class="mobile-sticky-bar" id="mobile-bottom-bar" style="display: none;">
     <div style="flex: 1; font-size: 0.8rem;">
       <div><span id="ui-bar-cash-lbl">Cash</span>: <b id="bar-cash" style="color: var(--success);">$1000</b></div>
-      <div><span id="ui-bar-time-lbl">Time</span>: <b id="bar-timer" style="color: var(--primary);">60s</b> | <b id="bar-food" style="color: #60a5fa;">0🌾</b> | <b id="bar-med" style="color: #a78bfa;">0💊</b></div>
+      <div><span id="ui-bar-goals-lbl">Goals</span>: <b id="bar-animals" style="color: #fbbf24;">0/10 🐾</b> | <b id="bar-prod" style="color: #34d399;">0/20 📦</b></div>
     </div>
-    <button id="btn-ready-mobile" class="btn btn-action" style="flex: 1.5;" onclick="toggleReady()">End Day</button>
+    <button id="btn-ready-mobile" class="btn btn-action" style="flex: 1.2;" onclick="toggleReady()">End Day</button>
   </div>
+
+  <audio id="bgm-audio" src="/music/music.mp3" loop preload="auto"></audio>
 
   <script>
     let currentLang = 'th';
 
     const I18N = {
       en: {
+        bgmOn: 'BGM: ON 🎶',
+        bgmOff: 'BGM: OFF 🔇',
         toggleBtn: 'TH (ภาษาไทย)',
         leaveBtn: 'Leave Game',
         title: 'Market Tycoon: Capital Race',
-        subtitle: 'Trade livestock, manage feed, sell harvest, and race to the financial goal!',
+        subtitle: 'Trade livestock, manage feed, sell harvest, and hit all three goals to win!',
         joinTitle: 'Join Game',
         joinBtn: 'Enter Game',
         namePlaceholder: 'Your Name',
@@ -286,6 +309,8 @@
         dayLabel: 'Day',
         labelTimer: 'Time Left',
         labelCash: 'Balance / Target',
+        labelAnimals: 'Animals / Goal',
+        labelProdSold: 'Produce Sold / Goal',
         labelFeed: 'Feed Bags',
         labelMed: 'Medicine',
         labelNeed: 'Feed Need',
@@ -321,14 +346,16 @@
         statusReady: 'Ready',
         statusTending: 'Tending Farm',
         statusOffline: 'Offline',
-        winnerAlert: '🏆 VICTORY! {name} hit the target capital of ${target}!',
+        winnerAlert: '🏆 VICTORY! {name} achieved all conditions: ${target} cash, at least {animals} animals, and {sold} units of produce sold!',
         reportFlu: '⚠️ Alert: {count} unmedicated animals died from the flu overnight!',
         hostTitle: 'Host Game Rules',
         lblStartCash: 'Starting Cash ($)',
         lblTargetCash: 'Winning Target Cash ($)',
+        lblTargetAnimals: 'Target Animals Owned',
+        lblTargetProduce: 'Target Produce Sold (Total)',
         lblDuration: 'Day Duration (Seconds)',
         lblCooldown: 'Event Cooldown (Days)',
-        barTimeLbl: 'Time',
+        barGoalsLbl: 'Goals',
         assets: {
           chicken: 'Poultry Flock 🐔',
           apiary: 'Bee Hive 🐝',
@@ -349,10 +376,12 @@
         }
       },
       th: {
+        bgmOn: 'เพลงพื้นหลัง: เปิด 🎶',
+        bgmOff: 'เพลงพื้นหลัง: ปิด 🔇',
         toggleBtn: 'EN (English)',
         leaveBtn: 'ออกจากห้อง',
         title: 'เศรษฐีฟาร์ม: วิ่งแข่งสู่เงินล้าน',
-        subtitle: 'ซื้อขายสัตว์ บริหารอาหารสัตว์ ฉีดวัคซีนป้องกันโรค และทำเงินสู่เป้าหมายเพื่อชนะ!',
+        subtitle: 'ซื้อขายสัตว์ บริหารอาหารสัตว์ ทำเงื่อนไขชัยชนะทั้ง 3 ข้อให้ครบเพื่อเป็นผู้ชนะ!',
         joinTitle: 'เข้าสู่ห้องเล่นเกม',
         joinBtn: 'เข้าเล่นเกม',
         namePlaceholder: 'ชื่อของคุณ',
@@ -363,6 +392,8 @@
         dayLabel: 'วันที่',
         labelTimer: 'เวลาที่เหลือ',
         labelCash: 'เงินปัจจุบัน / เป้าหมาย',
+        labelAnimals: 'จำนวนสัตว์ / เป้าหมาย',
+        labelProdSold: 'ผลผลิตที่ขาย / เป้าหมาย',
         labelFeed: 'ถุงอาหารสัตว์',
         labelMed: 'ยารักษาโรค',
         labelNeed: 'ต้องการอาหาร',
@@ -398,14 +429,16 @@
         statusReady: 'พร้อมแล้ว',
         statusTending: 'กำลังดูแลฟาร์ม',
         statusOffline: 'ออฟไลน์',
-        winnerAlert: '🏆 ชัยชนะ! {name} สะสมเงินครบ ${target} เป็นผู้ชนะการแข่งขัน!',
+        winnerAlert: '🏆 ชัยชนะ! {name} ผ่านเงื่อนไขครบทั้ง 3 ข้อ: เงิน ${target}, สัตว์อย่างน้อย {animals} ตัว และขายผลผลิตครบ {sold} ชิ้น!',
         reportFlu: '⚠️ แจ้งเตือน: สัตว์ในฟาร์ม {count} ตัวติดเชื้อไข้หวัดล้มตายเนื่องจากไม่มียารักษา!',
         hostTitle: 'ตั้งค่ากฎการแข่งขัน (เฉพาะหัวหน้าห้อง)',
         lblStartCash: 'เงินทุนเริ่มต้น ($)',
-        lblTargetCash: 'เป้าหมายเงินเพื่อชนะ ($)',
+        lblTargetCash: 'เป้าหมายเงิน ($)',
+        lblTargetAnimals: 'เป้าหมายสัตว์ที่ต้องมี',
+        lblTargetProduce: 'เป้าหมายผลผลิตที่ต้องขาย',
         lblDuration: 'เวลารอบวัน (วินาที)',
         lblCooldown: 'ระยะพักอีเวนต์ (วัน)',
-        barTimeLbl: 'เวลา',
+        barGoalsLbl: 'เป้าหมาย',
         assets: {
           chicken: 'ฝูงไก่ไข่ 🐔',
           apiary: 'รังผึ้งโพรง 🐝',
@@ -430,6 +463,11 @@
     function t(key) { return I18N[currentLang][key] || key; }
 
     let audioCtx = null;
+    let bgmAudio = null;
+    let bgmSourceNode = null;
+    let bgmGainNode = null;
+    let isBgmPlaying = false;
+    let volumeFluctuationInterval = null;
 
     function ensureAudioUnlocked() {
       try {
@@ -441,6 +479,77 @@
           audioCtx.resume();
         }
       } catch (e) {}
+    }
+
+    function initBgmNodes() {
+      if (bgmSourceNode) return;
+      ensureAudioUnlocked();
+      if (!audioCtx) return;
+
+      bgmAudio = document.getElementById('bgm-audio');
+      if (!bgmAudio) return;
+
+      try {
+        bgmSourceNode = audioCtx.createMediaElementSource(bgmAudio);
+        bgmGainNode = audioCtx.createGain();
+        bgmGainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+
+        bgmSourceNode.connect(bgmGainNode);
+        bgmGainNode.connect(audioCtx.destination);
+      } catch (err) {
+        console.warn("Audio routing fallback:", err);
+      }
+    }
+
+    function triggerVolumeSwell() {
+      if (!isBgmPlaying) return;
+
+      const isSwellHigh = Math.random() > 0.5;
+      const targetVolume = isSwellHigh 
+        ? 0.05 + Math.random() * 0.03
+        : 0.075 + Math.random() * 0.02;
+
+      if (bgmGainNode && audioCtx) {
+        const rampDuration = 2.5 + Math.random() * 1.5;
+        bgmGainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+        bgmGainNode.gain.linearRampToValueAtTime(targetVolume, audioCtx.currentTime + rampDuration);
+      } else if (bgmAudio) {
+        bgmAudio.volume = Math.max(0.1, Math.min(0.5, targetVolume));
+      }
+    }
+
+    function toggleBGM() {
+      ensureAudioUnlocked();
+      initBgmNodes();
+
+      if (!bgmAudio) {
+        bgmAudio = document.getElementById('bgm-audio');
+      }
+
+      const btn = document.getElementById('bgm-btn-text');
+
+      if (!isBgmPlaying) {
+        bgmAudio.play().then(() => {
+          isBgmPlaying = true;
+          if (btn) btn.innerText = t('bgmOn');
+
+          triggerVolumeSwell();
+          if (!volumeFluctuationInterval) {
+            volumeFluctuationInterval = setInterval(triggerVolumeSwell, 5000);
+          }
+        }).catch(err => {
+          console.warn("Playback error:", err);
+        });
+      } else {
+        bgmAudio.pause();
+        isBgmPlaying = false;
+        if (btn) btn.innerText = t('bgmOff');
+
+        if (volumeFluctuationInterval) {
+          clearInterval(volumeFluctuationInterval);
+          volumeFluctuationInterval = null;
+        }
+      }
     }
 
     window.addEventListener('click', ensureAudioUnlocked, { passive: true });
@@ -571,6 +680,10 @@
     }
 
     function applyLanguageStatic() {
+      const bgmText = isBgmPlaying ? t('bgmOn') : t('bgmOff');
+      const bgmBtn = document.getElementById('bgm-btn-text');
+      if (bgmBtn) bgmBtn.innerText = bgmText;
+
       document.getElementById('lang-btn-text').innerText = t('toggleBtn');
       document.getElementById('ui-leave-btn').innerText = t('leaveBtn');
       document.getElementById('ui-title').innerText = t('title');
@@ -586,12 +699,16 @@
       document.getElementById('ui-host-title').innerText = t('hostTitle');
       document.getElementById('ui-lbl-startcash').innerText = t('lblStartCash');
       document.getElementById('ui-lbl-targetcash').innerText = t('lblTargetCash');
+      document.getElementById('ui-lbl-targetanimals').innerText = t('lblTargetAnimals');
+      document.getElementById('ui-lbl-targetproduce').innerText = t('lblTargetProduce');
       document.getElementById('ui-lbl-duration').innerText = t('lblDuration');
       document.getElementById('ui-lbl-cooldown').innerText = t('lblCooldown');
 
       document.getElementById('ui-day-label').innerText = t('dayLabel');
       document.getElementById('ui-label-timer').innerText = t('labelTimer');
       document.getElementById('ui-label-cash').innerText = t('labelCash');
+      document.getElementById('ui-label-animals').innerText = t('labelAnimals');
+      document.getElementById('ui-label-prodsold').innerText = t('labelProdSold');
       document.getElementById('ui-label-feed').innerText = t('labelFeed');
       document.getElementById('ui-label-med').innerText = t('labelMed');
       document.getElementById('ui-label-need').innerText = t('labelNeed');
@@ -607,7 +724,7 @@
       document.getElementById('ui-produce-title').innerText = t('produceTitle');
 
       document.getElementById('ui-bar-cash-lbl').innerText = 'Cash';
-      document.getElementById('ui-bar-time-lbl').innerText = t('barTimeLbl');
+      document.getElementById('ui-bar-goals-lbl').innerText = t('barGoalsLbl');
     }
 
     const socket = io();
@@ -700,9 +817,19 @@
     function syncSettings() {
       const baseMoney = document.getElementById('input-base-cash').value;
       const targetCash = document.getElementById('input-target-cash').value;
+      const targetAnimalCount = document.getElementById('input-target-animals').value;
+      const targetProduceSold = document.getElementById('input-target-produce').value;
       const dayDuration = document.getElementById('input-duration').value;
       const eventCooldown = document.getElementById('input-cooldown').value;
-      socket.emit('update_room_settings', { baseMoney, targetCash, dayDuration, eventCooldown });
+
+      socket.emit('update_room_settings', { 
+        baseMoney, 
+        targetCash, 
+        targetAnimalCount, 
+        targetProduceSold, 
+        dayDuration, 
+        eventCooldown 
+      });
     }
 
     function startGame() { 
@@ -879,7 +1006,11 @@
       document.getElementById('btn-leave').style.display = 'inline-flex';
 
       if (data.winner) {
-        alert(t('winnerAlert').replace('{name}', data.winner).replace('{target}', data.targetCash));
+        alert(t('winnerAlert')
+          .replace('{name}', data.winner)
+          .replace('{target}', data.targetCash)
+          .replace('{animals}', data.targetAnimalCount)
+          .replace('{sold}', data.targetProduceSold));
       }
 
       const me = data.players[localPlayerId];
@@ -913,7 +1044,7 @@
         } else {
           hostPanel.style.display = 'none';
           clientSettings.style.display = 'block';
-          clientSettings.innerText = `Goal: $${data.targetCash} (Start: $${data.baseMoney}) | Day Length: ${data.dayDuration}s | Cooldown: ${data.eventCooldownSetting}d`;
+          clientSettings.innerText = `Goal: $${data.targetCash} | Need: ${data.targetAnimalCount} Animals | Sell: ${data.targetProduceSold} Produce | Duration: ${data.dayDuration}s`;
           document.getElementById('btn-start').style.display = 'none';
           document.getElementById('waiting-msg').style.display = 'inline';
         }
@@ -947,8 +1078,30 @@
 
       const isLocked = me.ready || Boolean(roomState.winner);
 
+      let totalAnimals = 0;
+      let neededFeed = 0;
+      ASSETS.forEach(item => {
+        const count = (me.inventory[item.id] || []).length;
+        totalAnimals += count;
+        neededFeed += count * item.feedCost;
+      });
+
+      const soldCount = me.totalProduceSold || 0;
+
       document.getElementById('hud-round').innerText = roomState.round;
-      document.getElementById('hud-cash').innerText = `$${me.cash} / $${roomState.targetCash}`;
+      
+      const hudCash = document.getElementById('hud-cash');
+      hudCash.innerText = `$${me.cash} / $${roomState.targetCash}`;
+      hudCash.style.color = me.cash >= roomState.targetCash ? 'var(--success)' : '#f87171';
+
+      const hudAnimals = document.getElementById('hud-animals');
+      hudAnimals.innerText = `${totalAnimals} / ${roomState.targetAnimalCount}`;
+      hudAnimals.style.color = totalAnimals >= roomState.targetAnimalCount ? 'var(--success)' : '#fbbf24';
+
+      const hudProdSold = document.getElementById('hud-prodsold');
+      hudProdSold.innerText = `${soldCount} / ${roomState.targetProduceSold}`;
+      hudProdSold.style.color = soldCount >= roomState.targetProduceSold ? 'var(--success)' : '#34d399';
+
       document.getElementById('hud-feed').innerText = `${me.feedBags} 🌾`;
       document.getElementById('hud-medicine').innerText = `${me.medicine || 0} 💊`;
       updateTimerDisplay(typeof roomState.timeLeft === 'number' ? roomState.timeLeft : roomState.dayDuration);
@@ -966,16 +1119,14 @@
       const currentFeedPrice = roomState.feedPrice || 10;
       document.getElementById('ui-feedbags-name').innerText = `${t('feedBagsName')} ($${currentFeedPrice} ea)`;
 
-      let neededFeed = 0;
-      ASSETS.forEach(item => {
-        neededFeed += (me.inventory[item.id] || []).length * item.feedCost;
-      });
       document.getElementById('hud-need').innerText = `${neededFeed} ${t('bagsPerDay')}`;
       document.getElementById('hud-need').style.color = (me.feedBags >= neededFeed) ? 'var(--success)' : 'var(--danger)';
 
       document.getElementById('bar-cash').innerText = `$${me.cash} / $${roomState.targetCash}`;
-      document.getElementById('bar-food').innerText = `${me.feedBags} 🌾`;
-      document.getElementById('bar-med').innerText = `${me.medicine || 0} 💊`;
+      document.getElementById('bar-animals').innerText = `${totalAnimals}/${roomState.targetAnimalCount} 🐾`;
+      document.getElementById('bar-animals').style.color = totalAnimals >= roomState.targetAnimalCount ? 'var(--success)' : '#fbbf24';
+      document.getElementById('bar-prod').innerText = `${soldCount}/${roomState.targetProduceSold} 📦`;
+      document.getElementById('bar-prod').style.color = soldCount >= roomState.targetProduceSold ? 'var(--success)' : '#34d399';
 
       document.getElementById('ready-status-container').innerHTML = Object.values(roomState.players).map(p => {
         let tagClass = 'waiting-tag';

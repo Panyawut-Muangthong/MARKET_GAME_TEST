@@ -7,7 +7,9 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Static assets
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/music', express.static(path.join(__dirname, 'music')));
 
 const ASSET_CATALOG = [
   { id: 'chicken', name: 'Poultry Flock 🐔', basePrice: 100, feedCost: 1, produce: 'egg', produceName: 'Eggs 🥚', produceBasePrice: 15, yieldPerAnimal: 1, minPrice: 40, maxPrice: 200, prodMin: 6, prodMax: 35 },
@@ -145,15 +147,13 @@ function pickRandomEvent(room = null, force = false) {
     return eventInstance;
   }
 
-  // If room is provided, respect cooldown strictly
   if (room) {
     if (room.currentCooldown > -1) {
       room.currentCooldown--;
-      return null; // Enforce calm day
+      return null;
     }
   }
 
-  // 35% chance when off cooldown
   if (Math.random() < 0.35) {
     const template = EVENTS[Math.floor(Math.random() * EVENTS.length)];
     const eventInstance = {
@@ -176,10 +176,25 @@ function pickRandomEvent(room = null, force = false) {
 }
 
 function checkWinCondition(room, player) {
-  if (!room.winner && player.cash >= room.targetCash) {
+  let totalAnimals = 0;
+  ASSET_CATALOG.forEach(item => {
+    totalAnimals += (player.inventory[item.id] || []).length;
+  });
+
+  const targetCash = Number(room.targetCash);
+  const targetAnimals = Number(room.targetAnimalCount);
+  const targetProduce = Number(room.targetProduceSold);
+
+  const cashCondition = Number(player.cash) >= targetCash;
+  const animalCondition = totalAnimals >= targetAnimals;
+  const produceCondition = Number(player.totalProduceSold || 0) >= targetProduce;
+
+  if (!room.winner && cashCondition && animalCondition && produceCondition) {
     room.winner = player.name;
     stopRoomTimer(room.roomId);
+    return true;
   }
+  return false;
 }
 
 function clearPlayerTimer(playerId) {
@@ -262,6 +277,8 @@ io.on('connection', (socket) => {
         round: 1,
         baseMoney: 1000,
         targetCash: 5000,
+        targetAnimalCount: 10,
+        targetProduceSold: 20,
         dayDuration: 60,
         eventCooldownSetting: 2,
         currentCooldown: 0,
@@ -286,6 +303,7 @@ io.on('connection', (socket) => {
         if (!existing.inventory[a.id]) existing.inventory[a.id] = [];
         if (typeof existing.produce[a.produce] !== 'number') existing.produce[a.produce] = 0;
       });
+      if (typeof existing.totalProduceSold !== 'number') existing.totalProduceSold = 0;
     } else {
       if (room.started) {
         socket.emit('error_msg', 'Game is already running.');
@@ -309,6 +327,7 @@ io.on('connection', (socket) => {
         medicine: 0,
         inventory: emptyInventory,
         produce: emptyProduce,
+        totalProduceSold: 0,
         ready: false,
         connected: true,
         lastReport: null
@@ -319,17 +338,21 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('room_update', sanitizeRoom(room));
   });
 
-  socket.on('update_room_settings', ({ baseMoney, targetCash, dayDuration, eventCooldown }) => {
+  socket.on('update_room_settings', ({ baseMoney, targetCash, targetAnimalCount, targetProduceSold, dayDuration, eventCooldown }) => {
     const room = rooms[socket.roomId];
     if (!room || room.hostId !== socket.playerId || room.started) return;
 
-    const base = Math.max(100, Number(baseMoney) || 1000);
-    const goal = Math.max(base + 100, Number(targetCash) || 5000);
-    const duration = Math.min(600, Math.max(10, Number(dayDuration) || 60));
-    const cd = Math.max(0, Math.min(10, Number(eventCooldown) ?? 2));
+    const base = Math.max(100, parseInt(baseMoney, 10) || 1000);
+    const goal = Math.max(base + 100, parseInt(targetCash, 10) || 5000);
+    const targetAnimals = Math.max(1, parseInt(targetAnimalCount, 10) || 10);
+    const targetProd = Math.max(1, parseInt(targetProduceSold, 10) || 20);
+    const duration = Math.min(600, Math.max(10, parseInt(dayDuration, 10) || 60));
+    const cd = Math.max(0, Math.min(10, parseInt(eventCooldown, 10) ?? 2));
 
     room.baseMoney = base;
     room.targetCash = goal;
+    room.targetAnimalCount = targetAnimals;
+    room.targetProduceSold = targetProd;
     room.dayDuration = duration;
     room.timeLeft = duration;
     room.eventCooldownSetting = cd;
@@ -415,6 +438,7 @@ io.on('connection', (socket) => {
           boughtRound: currentRound
         });
       }
+      checkWinCondition(room, player);
       io.to(room.roomId).emit('room_update', sanitizeRoom(room));
     }
   });
@@ -458,6 +482,7 @@ io.on('connection', (socket) => {
       const unitPrice = room.market?.produce?.[produceId] || asset.produceBasePrice;
       player.produce[produceId] -= qty;
       player.cash += qty * unitPrice;
+      player.totalProduceSold = (player.totalProduceSold || 0) + qty;
       checkWinCondition(room, player);
       io.to(room.roomId).emit('room_update', sanitizeRoom(room));
     }
@@ -574,24 +599,24 @@ function advanceDay(room) {
     };
 
     p.ready = false;
+
+    if (checkWinCondition(room, p)) {
+      io.to(room.roomId).emit('room_update', sanitizeRoom(room));
+      return;
+    }
   }
 
   if (room.event) {
     room.event.remainingDays--;
     if (room.event.remainingDays <= 0) {
       room.event = null;
-      // Start cooldown: +1 buffer so the player gets the exact number of full peaceful days
       room.currentCooldown = Number(room.eventCooldownSetting ?? 2);
     }
   } else {
-    // Only try to trigger a new event if there wasn't an event expiring this turn
     room.event = pickRandomEvent(room);
   }
-  
-  // ----------------------------------------
 
   room.feedPrice = BASE_FEED_PRICE * (room.event?.feedPriceMult || 1.0);
-
   room.round++;
   room.market = randomizeMarket(room.market, room.event);
 
@@ -611,6 +636,7 @@ function sanitizeRoom(room) {
       medicine: p.medicine || 0,
       inventory: p.inventory,
       produce: p.produce,
+      totalProduceSold: p.totalProduceSold || 0,
       ready: p.ready,
       connected: p.connected,
       lastReport: p.lastReport
@@ -624,6 +650,8 @@ function sanitizeRoom(room) {
     round: room.round,
     baseMoney: room.baseMoney,
     targetCash: room.targetCash,
+    targetAnimalCount: room.targetAnimalCount ?? 10,
+    targetProduceSold: room.targetProduceSold ?? 20,
     dayDuration: Number(room.dayDuration) || 60,
     eventCooldownSetting: room.eventCooldownSetting ?? 2,
     currentCooldown: room.currentCooldown || 0,

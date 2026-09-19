@@ -10,29 +10,24 @@
 <body>
   <div class="container">
     <div class="top-controls" style="display: flex; justify-content: space-between; align-items: center;">
-      <!-- Top Left: Hamburger Menu -->
       <div class="nav-menu-wrapper">
         <button class="btn-hamburger" id="hamburger-btn" onclick="toggleMenu(event)">☰</button>
         <div class="menu-dropdown" id="menu-dropdown">
-          <button class="menu-item-btn" onclick="openModal('modal-how')">
-            <span id="menu-item-how">📖 How to Play</span>
-          </button>
           <button class="menu-item-btn" onclick="openModal('modal-news')">
-            <span id="menu-item-news">📢 News & Updates</span>
+            <span id="menu-item-news">News & Updates</span>
           </button>
         </div>
       </div>
 
-      <!-- Top Right Controls -->
       <div style="display: flex; gap: 8px;">
         <button class="btn-leave" id="btn-leave" style="display: none;" onclick="leaveRoom()">
-          🚪 <span id="ui-leave-btn">Leave Game</span>
+          <span id="ui-leave-btn">Leave Game</span>
         </button>
         <button class="lang-toggle" id="bgm-toggle-btn" onclick="toggleBGM()">
-          🎵 <span id="bgm-btn-text">BGM: OFF</span>
+          <span id="bgm-btn-text">BGM: OFF</span>
         </button>
         <button class="lang-toggle" onclick="toggleLanguage()">
-          🌐 <span id="lang-btn-text">TH (ภาษาไทย)</span>
+          <span id="lang-btn-text">TH (ภาษาไทย)</span>
         </button>
       </div>
     </div>
@@ -47,6 +42,10 @@
       <input type="text" id="join-name" placeholder="Your Name" />
       <input type="text" id="join-room" placeholder="Room Code (e.g. RACE)" />
       <button class="btn btn-action" style="width: 100%;" onclick="joinRoom()" id="ui-join-btn">Enter Game</button>
+      <div id="lobby-how-to-play" class="info-box">
+        <h3 style="color: var(--primary); margin-bottom: 10px;" id="lobby-how-title">How to Play</h3>
+        <div id="lobby-how-body" class="guide-text"></div>
+      </div>
     </div>
 
     <div id="screen-waiting" class="card" style="display: none;">
@@ -85,6 +84,11 @@
       <div id="waiting-player-list" style="margin: 10px 0;"></div>
       <button id="btn-start" class="btn btn-action" style="display:none; width:100%;" onclick="startGame()">Start Match</button>
       <span id="waiting-msg" style="color: var(--text-muted); font-size: 0.9rem;">Waiting for host to start...</span>
+
+      <div id="waiting-how-to-play" class="info-box">
+        <h4 style="color: var(--primary); margin-bottom: 10px;" id="waiting-how-title">How to Play</h4>
+        <div id="waiting-how-body" class="guide-text"></div>
+      </div>
     </div>
 
     <div id="screen-game" style="display: none;">
@@ -120,42 +124,37 @@
             <div class="val" id="hud-prodsold" style="color: #34d399;">0 / 20</div>
           </div>
           <div class="hud-box">
-            <div class="label" id="ui-label-feed">Feed Bags</div>
-            <div class="val" id="hud-feed" style="color: #60a5fa;">0 🌾</div>
+            <div class="label" id="ui-label-feed">Feed (Stock / Need)</div>
+            <div class="val" id="hud-feed" style="color: #60a5fa;">0 / 0</div>
           </div>
           <div class="hud-box">
-            <div class="label" id="ui-label-fertilizer">Fertilizer</div>
-            <div class="val" id="hud-fertilizer" style="color: #10b981;">0 🧪</div>
+            <div class="label" id="ui-label-fertilizer">Fertilizer (Stock / Need)</div>
+            <div class="val" id="hud-fertilizer" style="color: #10b981;">0 / 0</div>
           </div>
           <div class="hud-box">
             <div class="label" id="ui-label-pesticide">Pesticide</div>
-            <div class="val" id="hud-pesticide" style="color: #f87171;">0 🐛🔫</div>
+            <div class="val" id="hud-pesticide" style="color: #f87171;">0</div>
           </div>
           <div class="hud-box">
             <div class="label" id="ui-label-plots">Garden Plots</div>
-            <div class="val" id="hud-plots" style="color: #f59e0b;">0 / 6 🪴</div>
+            <div class="val" id="hud-plots" style="color: #f59e0b;">0 / 6</div>
           </div>
           <div class="hud-box">
             <div class="label" id="ui-label-med">Medicine</div>
-            <div class="val" id="hud-medicine" style="color: #a78bfa;">0 💊</div>
-          </div>
-          <div class="hud-box">
-            <div class="label" id="ui-label-need">Feed Need</div>
-            <div class="val" id="hud-need" style="color: var(--danger);">0 / day</div>
+            <div class="val" id="hud-medicine" style="color: #a78bfa;">0</div>
           </div>
         </div>
 
-        <button id="btn-ready-desktop" class="btn btn-end" onclick="toggleReady()">🌙 Feed, Protect Crops & End Day</button>
+        <button id="btn-ready-desktop" class="btn btn-end" onclick="toggleReady()">Feed, Protect Crops & End Day</button>
       </div>
 
       <div class="columns">
         <div class="card">
           <h3 style="color: var(--primary); margin-bottom: 10px;" id="ui-market-title">Marketplace: Livestock, Seeds & Supplies</h3>
 
-          <!-- Supplies -->
           <div class="item-row" style="display:flex; justify-content:space-between; align-items:center; background:#16243b;">
             <div>
-              <strong id="ui-feedbags-name">Feed Bags 🌾</strong>
+              <strong id="ui-feedbags-name">Feed Bags</strong>
               <div style="font-size:0.75rem; color:var(--text-muted);" id="ui-feedbags-desc">Feed your herds to gather produce!</div>
             </div>
             <div class="stepper-wrap">
@@ -170,7 +169,7 @@
 
           <div class="item-row" style="display:flex; justify-content:space-between; align-items:center; background:#064e3b; border-color:#059669;">
             <div>
-              <strong id="ui-fertbags-name">Crop Fertilizer 🧪</strong>
+              <strong id="ui-fertbags-name">Crop Fertilizer</strong>
               <div style="font-size:0.75rem; color:#a7f3d0;" id="ui-fertbags-desc">Nurture your crops overnight so they grow!</div>
             </div>
             <div class="stepper-wrap">
@@ -185,7 +184,7 @@
 
           <div class="item-row" style="display:flex; justify-content:space-between; align-items:center; background:#450a0a; border-color:#b91c1c;">
             <div>
-              <strong id="ui-pesticide-name">Pesticide Spray 🐛🔫 ($25 ea)</strong>
+              <strong id="ui-pesticide-name">Pesticide Spray ($25 ea)</strong>
               <div style="font-size:0.75rem; color:#fecaca;" id="ui-pesticide-desc">Shields 1 plant plot overnight against worm infestation!</div>
             </div>
             <div class="stepper-wrap">
@@ -198,7 +197,7 @@
 
           <div class="item-row" style="display:flex; justify-content:space-between; align-items:center; background:#1e1b4b; border-color:#4338ca;">
             <div>
-              <strong id="ui-medicine-name">Animal Medicine 💊 ($35 ea)</strong>
+              <strong id="ui-medicine-name">Animal Medicine ($35 ea)</strong>
               <div style="font-size:0.75rem; color:#cbd5e1;" id="ui-medicine-desc">Vaccinate 1 animal overnight against flu deaths!</div>
             </div>
             <div class="stepper-wrap">
@@ -209,27 +208,22 @@
             </div>
           </div>
 
-          <!-- Seeds Section -->
-          <h4 style="font-size: 0.9rem; color: var(--accent); margin: 12px 0 6px 0;">Seeds & Plantable Crops</h4>
+          <h4 style="font-size: 0.9rem; color: var(--accent); margin: 12px 0 6px 0;" id="ui-seeds-market-title">Seeds & Plantable Crops</h4>
           <div id="market-seeds-list"></div>
 
-          <!-- Animals Section -->
-          <h4 style="font-size: 0.9rem; color: var(--primary); margin: 14px 0 6px 0;">Livestock Market</h4>
+          <h4 style="font-size: 0.9rem; color: var(--primary); margin: 14px 0 6px 0;" id="ui-animals-market-title">Livestock Market</h4>
           <div id="market-animals-list"></div>
         </div>
 
         <div class="card">
           <h3 style="color: var(--primary); margin-bottom: 10px;" id="ui-barn-title">Your Estate: Livestock, Garden & Harvest</h3>
 
-          <!-- Garden Slots -->
           <h4 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 6px;" id="ui-garden-title">Active Crop Slots</h4>
           <div id="garden-plots-list"></div>
 
-          <!-- Livestock -->
           <h4 style="font-size: 0.9rem; color: var(--text-muted); margin: 14px 0 6px 0;" id="ui-holdings-title">Owned Livestock</h4>
           <div id="inventory-animals-list"></div>
 
-          <!-- Harvest Storage -->
           <div style="margin-top: 14px;">
             <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 6px;" id="ui-produce-title">Raw Harvest Storage</h4>
             <div id="produce-list"></div>
@@ -239,32 +233,30 @@
     </div>
   </div>
 
-  <!-- How to Play Modal -->
   <div class="modal-overlay" id="modal-how" onclick="closeModalOnOverlay(event, 'modal-how')">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="modal-how-title">📖 How to Play</h3>
+        <h3 id="modal-how-title">How to Play</h3>
         <button class="modal-close-btn" onclick="closeModal('modal-how')">&times;</button>
       </div>
-      <div class="modal-body" id="modal-how-body"></div>
+      <div class="modal-body guide-text" id="modal-how-body"></div>
     </div>
   </div>
 
-  <!-- News / Updates Modal -->
   <div class="modal-overlay" id="modal-news" onclick="closeModalOnOverlay(event, 'modal-news')">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="modal-news-title">📢 News & Updates</h3>
+        <h3 id="modal-news-title">News & Updates</h3>
         <button class="modal-close-btn" onclick="closeModal('modal-news')">&times;</button>
       </div>
-      <div class="modal-body" id="modal-news-body"></div>
+      <div class="modal-body guide-text" id="modal-news-body"></div>
     </div>
   </div>
 
   <div class="mobile-sticky-bar" id="mobile-bottom-bar" style="display: none;">
     <div style="flex: 1; font-size: 0.8rem;">
       <div><span id="ui-bar-cash-lbl">Cash</span>: <b id="bar-cash" style="color: var(--success);">$1000</b></div>
-      <div><span id="ui-bar-goals-lbl">Goals</span>: <b id="bar-animals" style="color: #fbbf24;">0/10 🐾</b> | <b id="bar-prod" style="color: #34d399;">0/20 📦</b></div>
+      <div><span id="ui-bar-goals-lbl">Goals</span>: <b id="bar-animals" style="color: #fbbf24;">0/10</b> | <b id="bar-prod" style="color: #34d399;">0/20</b></div>
     </div>
     <button id="btn-ready-mobile" class="btn btn-action" style="flex: 1.2;" onclick="toggleReady()">End Day</button>
   </div>

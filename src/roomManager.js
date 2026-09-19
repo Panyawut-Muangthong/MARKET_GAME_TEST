@@ -104,7 +104,6 @@ function advanceDay(room, io) {
     let wormCropLosses = 0;
     let harvestedCount = 0;
 
-    // --- Livestock Feed & Produce ---
     let neededFeed = 0;
     ASSET_CATALOG.forEach(item => {
       const count = (p.inventory[item.id] || []).length;
@@ -117,7 +116,7 @@ function advanceDay(room, io) {
 
     if (p.feedBags >= neededFeed) {
       p.feedBags -= neededFeed;
-      
+
       ASSET_CATALOG.forEach(item => {
         const count = (p.inventory[item.id] || []).length;
         if (count > 0) {
@@ -155,30 +154,25 @@ function advanceDay(room, io) {
       p.medicine = medicineStock;
     }
 
-    // --- Plant Growth, Fertilizer, Worms & Auto-Harvest ---
     const survivingPlots = [];
     (p.plots || []).forEach(plot => {
       const cropDef = PLANT_CATALOG.find(c => c.id === plot.cropId);
       if (!cropDef) return;
 
-      // Worm Check: If worm infestation is active, 1 pesticide defends 1 plot
       if (isWorms) {
         if (pesticideStock > 0) {
           pesticideStock--;
         } else {
-          // Unprotected plot eaten by worms
           wormCropLosses++;
           return;
         }
       }
 
-      // Fertilizer & Growth
       if (fertilizerStock >= cropDef.fertilizerCost) {
         fertilizerStock -= cropDef.fertilizerCost;
         plot.growthProgress += 1;
       }
 
-      // Auto Harvest check
       if (plot.growthProgress >= cropDef.growthDays) {
         const yieldQty = Math.max(1, Math.round(cropDef.yieldPerHarvest * produceYieldMult));
         p.produce[cropDef.produce] = (p.produce[cropDef.produce] || 0) + yieldQty;

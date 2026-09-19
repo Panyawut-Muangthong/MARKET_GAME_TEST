@@ -148,7 +148,7 @@ function registerSocketHandlers(io) {
 
       room.started = true;
       room.timeLeft = Number(room.dayDuration) || 60;
-      
+
       startRoomTimer(room, io);
       io.to(room.roomId).emit('room_update', sanitizeRoom(room));
     });

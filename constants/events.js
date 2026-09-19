@@ -18,8 +18,8 @@ function rollGourmetTier() {
 const EVENTS = [
   {
     id: 'flu_epidemic',
-    titleEn: '🦠 Severe Farm Flu Epidemic!',
-    titleTh: '🦠 การระบาดของไข้หวัดสัตว์รุนแรง!',
+    titleEn: 'Severe Farm Flu Epidemic!',
+    titleTh: 'การระบาดของไข้หวัดสัตว์รุนแรง!',
     descEn: 'Produce yield drops by 50%! Animals without medicine may die overnight!',
     descTh: 'ผลผลิตลดลง 50%! สัตว์ที่ไม่ได้รับยาอาจล้มตายข้ามคืน!',
     duration: 2,
@@ -29,8 +29,8 @@ const EVENTS = [
   },
   {
     id: 'worm_infestation',
-    titleEn: '🐛 Voracious Pest Worm Invasion!',
-    titleTh: '🐛 ฝูงหนอนศัตรูพืชบุกทำลายแปลงผัก!',
+    titleEn: 'Voracious Pest Worm Invasion!',
+    titleTh: 'ฝูงหนอนศัตรูพืชบุกทำลายแปลงผัก!',
     descEn: 'Worms attack your crops! Any plot without pesticide spray will be eaten and destroyed overnight!',
     descTh: 'หนอนบุกทำลายแปลงผัก! แปลงใดที่ไม่ฉีดยาฆ่าแมลง/ยากำจัดหนอนจะถูกกัดกินและเหี่ยวเฉาตายข้ามคืน!',
     duration: 2,
@@ -40,8 +40,8 @@ const EVENTS = [
   },
   {
     id: 'bumper_harvest',
-    titleEn: '🌻 Golden Sunshine Festival!',
-    titleTh: '🌻 เทศกาลแดดทอง ผลผลิตเบ่งบาน!',
+    titleEn: 'Golden Sunshine Festival!',
+    titleTh: 'เทศกาลแดดทอง ผลผลิตเบ่งบาน!',
     descEn: 'Healthy animals produce double yields today!',
     descTh: 'สัตว์ที่แข็งแรงและได้รับอาหารจะให้ผลผลิตเป็น 2 เท่าในวันนี้!',
     duration: 1,
@@ -51,8 +51,8 @@ const EVENTS = [
   },
   {
     id: 'feed_shortage',
-    titleEn: '🌾 Global Feed Logistics Crisis!',
-    titleTh: '🌾 วิกฤตการณ์ขาดแคลนอาหารสัตว์!',
+    titleEn: 'Global Feed Logistics Crisis!',
+    titleTh: 'วิกฤตการณ์ขาดแคลนอาหารสัตว์!',
     descEn: 'Feed prices have surged to $25 per bag due to drought and supply disruption!',
     descTh: 'ราคาอาหารสัตว์พุ่งขึ้นเป็นถุงละ $25 เนื่องจากวิกฤตภัยแล้งและการขนส่ง!',
     duration: 2,
@@ -62,8 +62,8 @@ const EVENTS = [
   },
   {
     id: 'gourmet_boom',
-    titleEn: '🍾 Gourmet Restaurant Boom!',
-    titleTh: '🍾 กระแสภัตตาคารหรูระดับโลก!',
+    titleEn: 'Gourmet Restaurant Boom!',
+    titleTh: 'กระแสภัตตาคารหรูระดับโลก!',
     descEn: 'High-end delicacies in demand! Produce sells for +60% on the market!',
     descTh: 'ความต้องการวัตถุดิบพรีเมียมล้นหลาม! ขายผลผลิตในตลาดได้ราคาสูงขึ้น +60%!',
     duration: 2,

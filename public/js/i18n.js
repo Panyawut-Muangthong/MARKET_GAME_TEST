@@ -2,14 +2,13 @@ let currentLang = 'th';
 
 const I18N = {
   en: {
-    bgmOn: 'BGM: ON 🎶',
-    bgmOff: 'BGM: OFF 🔇',
+    bgmOn: 'BGM: ON',
+    bgmOff: 'BGM: OFF',
     toggleBtn: 'TH (ภาษาไทย)',
     leaveBtn: 'Leave Game',
-    menuHowToPlay: '📖 How to Play',
-    menuNews: '📢 News & Updates',
-    howToPlayTitle: '📖 How to Play',
-    newsTitle: '📢 Updates & Patch Notes',
+    menuNews: 'News & Updates',
+    howToPlayTitle: 'How to Play',
+    newsTitle: 'Updates & Patch Notes',
     title: 'Market Tycoon: Capital Race',
     subtitle: 'Trade livestock, plant crops, manage feed & fertilizer, and hit goals to win!',
     joinTitle: 'Join Game',
@@ -24,32 +23,37 @@ const I18N = {
     labelCash: 'Balance / Target',
     labelAnimals: 'Animals / Goal',
     labelProdSold: 'Produce Sold / Goal',
-    labelFeed: 'Feed Bags',
-    labelFertilizer: 'Fertilizer',
+    labelFeed: 'Feed (Stock / Need)',
+    labelFertilizer: 'Fertilizer (Stock / Need)',
     labelPesticide: 'Pesticide',
     labelPlots: 'Garden Plots',
     labelMed: 'Medicine',
     labelNeed: 'Feed Need',
     bagsPerDay: 'bags / day',
-    endDayBtn: '🌙 Feed, Protect Crops & End Day',
-    endDayBtnWaiting: '⏳ Waiting for others...',
+    endDayBtn: 'Feed, Protect Crops & End Day',
+    endDayBtnWaiting: 'Waiting for others...',
     marketTitle: 'Marketplace: Livestock, Seeds & Supplies',
-    feedBagsName: 'Feed Bags 🌾',
+    seedsMarketTitle: 'Seeds & Plantable Crops',
+    animalsMarketTitle: 'Livestock Market',
+    feedBagsName: 'Feed Bags',
     feedBagsDesc: 'Feed herds overnight to generate produce.',
-    fertBagsName: 'Crop Fertilizer 🧪',
+    fertBagsName: 'Crop Fertilizer',
     fertBagsDesc: 'Nurture your crops overnight so they grow!',
-    pesticideName: 'Pesticide Spray 🐛🔫 ($25 ea)',
+    pesticideName: 'Pesticide Spray ($25 ea)',
     pesticideDesc: 'Shields 1 plant plot overnight against worm infestation!',
-    medicineName: 'Animal Medicine 💊 ($35 ea)',
+    medicineName: 'Animal Medicine ($35 ea)',
     medicineDesc: 'Protects 1 animal from dying during the Flu!',
+    supplyPriceTag: '($${price} ea)',
     buyBtn: 'Buy',
     plantBtn: 'Plant',
     cantBuy: "Can't Buy",
+    plotsFull: 'Plots Full',
     boughtBtn: 'Purchased!',
     soldBtn: 'Sold!',
     plantedBtn: 'Planted!',
     eatsText: 'Eats',
     feedPerDay: 'feed/day',
+    fertPerDay: 'fert/day',
     marketPriceText: 'Market',
     barnTitle: 'Your Estate: Livestock, Garden & Harvest',
     holdingsTitle: 'Owned Livestock (Liquidate with - / +)',
@@ -60,6 +64,7 @@ const I18N = {
     daysText: 'days',
     avgCostText: 'Avg',
     needsText: 'Needs',
+    profitText: 'P/L',
     sellActionText: 'Sell',
     forText: 'for',
     produceTitle: 'Raw Harvest Storage (Sell for Profit)',
@@ -68,13 +73,14 @@ const I18N = {
     eachText: 'ea',
     sellOne: 'Sell 1',
     sellAll: 'Sell All',
+    plotLabel: 'Plot',
     daysLeftText: 'days remaining',
     statusReady: 'Ready',
     statusTending: 'Tending Farm',
     statusOffline: 'Offline',
-    winnerAlert: '🏆 VICTORY! {name} achieved all conditions: ${target} cash, at least {animals} animals, and {sold} units of produce sold!',
-    reportFlu: '⚠️ Alert: {count} unmedicated animals died from the flu overnight!',
-    reportWorms: '🐛 Alert: {count} unprotected plant plots were devoured by pest worms overnight!',
+    winnerAlert: 'VICTORY! {name} achieved all conditions: ${target} cash, at least {animals} animals, and {sold} units of produce sold!',
+    reportFlu: 'Alert: {count} unmedicated animals died from the flu overnight!',
+    reportWorms: 'Alert: {count} unprotected plant plots were devoured by pest worms overnight!',
     hostTitle: 'Host Game Rules',
     lblStartCash: 'Starting Cash ($)',
     lblTargetCash: 'Winning Target Cash ($)',
@@ -82,19 +88,21 @@ const I18N = {
     lblTargetProduce: 'Target Produce Sold (Total)',
     lblDuration: 'Day Duration (Seconds)',
     lblCooldown: 'Event Cooldown (Days)',
+    barCashLbl: 'Cash',
     barGoalsLbl: 'Goals',
+    clientGoalSummary: 'Goal: ${cash} | Need: {animals} Animals | Sell: {produce} Produce | Day: {duration}s',
     howToPlayBody: `
-      <h4>🏆 Winning the Game</h4>
+      <h4>Winning the Game</h4>
       <p>Reach all 3 goals simultaneously: Cash target, required animals, and total produce sold.</p>
 
-      <h4>🐔 Livestock & Feed</h4>
+      <h4>Livestock & Feed</h4>
       <ul>
         <li>Animals consume feed overnight and generate produce (eggs, milk, wool, etc.).</li>
         <li>If you lack feed, 50% of your livestock will starve overnight.</li>
         <li>Protect animals with <b>Medicine</b> during Flu epidemics.</li>
       </ul>
 
-      <h4>🌱 Garden & Crops</h4>
+      <h4>Garden & Crops</h4>
       <ul>
         <li>Buy seeds to plant in active garden plots.</li>
         <li>Each plot consumes fertilizer daily to advance growth.</li>
@@ -103,7 +111,7 @@ const I18N = {
       </ul>
     `,
     newsBody: `
-      <h4>🌿 Version 1.2 — Garden & Pest Expansion</h4>
+      <h4>Version 1.2 — Garden & Pest Expansion</h4>
       <ul>
         <li>Added plantable crop seeds: Wheat, Carrots, and Strawberries.</li>
         <li>Added Crop Fertilizer system and automatic maturity harvesting.</li>
@@ -139,14 +147,13 @@ const I18N = {
     }
   },
   th: {
-    bgmOn: 'เพลงพื้นหลัง: เปิด 🎶',
-    bgmOff: 'เพลงพื้นหลัง: ปิด 🔇',
+    bgmOn: 'เพลงพื้นหลัง: เปิด',
+    bgmOff: 'เพลงพื้นหลัง: ปิด',
     toggleBtn: 'EN (English)',
     leaveBtn: 'ออกจากห้อง',
-    menuHowToPlay: '📖 วิธีการเล่น',
-    menuNews: '📢 ข่าวสาร & อัปเดต',
-    howToPlayTitle: '📖 วิธีการเล่นเกม',
-    newsTitle: '📢 ข่าวสารการอัปเดตแพตช์',
+    menuNews: 'ข่าวสาร & อัปเดต',
+    howToPlayTitle: 'วิธีการเล่นเกม',
+    newsTitle: 'ข่าวสารการอัปเดตแพตช์',
     title: 'เศรษฐีฟาร์ม: วิ่งแข่งสู่เงินล้าน',
     subtitle: 'ซื้อขายสัตว์ ปลูกพืช บริหารอาหารและปุ๋ย ทำเงื่อนไขชัยชนะทั้ง 3 ข้อให้ครบเพื่อเป็นผู้ชนะ!',
     joinTitle: 'เข้าสู่ห้องเล่นเกม',
@@ -161,32 +168,37 @@ const I18N = {
     labelCash: 'เงินปัจจุบัน / เป้าหมาย',
     labelAnimals: 'จำนวนสัตว์ / เป้าหมาย',
     labelProdSold: 'ผลผลิตที่ขาย / เป้าหมาย',
-    labelFeed: 'ถุงอาหารสัตว์',
-    labelFertilizer: 'ปุ๋ยพืช',
+    labelFeed: 'อาหารสัตว์ (มี / ต้องใช้)',
+    labelFertilizer: 'ปุ๋ย (มี / ต้องใช้)',
     labelPesticide: 'สเปรย์กำจัดหนอน',
     labelPlots: 'แปลงปลูกพืช',
     labelMed: 'ยารักษาโรค',
     labelNeed: 'ต้องการอาหาร',
     bagsPerDay: 'ถุง / วัน',
-    endDayBtn: '🌙 ให้อาหารสัตว์ พ่นยา & จบวัน',
-    endDayBtnWaiting: '⏳ กำลังรอผู้เล่นคนอื่น...',
+    endDayBtn: 'ให้อาหารสัตว์ พ่นยา & จบวัน',
+    endDayBtnWaiting: 'กำลังรอผู้เล่นคนอื่น...',
     marketTitle: 'ตลาดกลาง: สัตว์เลี้ยง, เมล็ดพันธุ์ และเสบียง',
-    feedBagsName: 'ถุงอาหารสัตว์ 🌾',
+    seedsMarketTitle: 'เมล็ดพันธุ์ & พืชเพาะปลูก',
+    animalsMarketTitle: 'ตลาดซื้อขายสัตว์',
+    feedBagsName: 'ถุงอาหารสัตว์',
     feedBagsDesc: 'ให้อาหารสัตว์ข้ามคืนเพื่อสร้างผลผลิต',
-    fertBagsName: 'ปุ๋ยบำรุงพืช 🧪',
+    fertBagsName: 'ปุ๋ยบำรุงพืช',
     fertBagsDesc: 'ใส่ปุ๋ยข้ามคืนเพื่อให้พืชในแปลงเติบโต!',
-    pesticideName: 'สเปรย์กำจัดหนอน 🐛🔫 (กระป๋องละ $25)',
+    pesticideName: 'สเปรย์กำจัดหนอน (กระป๋องละ $25)',
     pesticideDesc: 'ป้องกันแปลงผัก 1 แปลงไม่ให้หนอนกัดกินตายข้ามคืน!',
-    medicineName: 'ยารักษาและวัคซีน 💊 (ขวดละ $35)',
+    medicineName: 'ยารักษาและวัคซีน (ขวดละ $35)',
     medicineDesc: 'ปกป้องสัตว์ 1 ตัวไม่ให้ล้มตายจากโรคระบาดข้ามคืน!',
+    supplyPriceTag: '(ถุงละ ${price})',
     buyBtn: 'ซื้อ',
-    plantBtn: 'ปลูกลงแปลง',
-    cantBuy: 'ซื้อไม่ได้',
+    plantBtn: 'ปลูก',
+    cantBuy: 'เงินไม่พอ',
+    plotsFull: 'แปลงเต็มแล้ว',
     boughtBtn: 'ซื้อแล้ว!',
     soldBtn: 'ขายแล้ว!',
     plantedBtn: 'ปลูกแล้ว!',
     eatsText: 'กิน',
-    feedPerDay: 'ถุง/วัน',
+    feedPerDay: 'อาหาร/วัน',
+    fertPerDay: 'ปุ๋ย/วัน',
     marketPriceText: 'ราคาตลาด',
     barnTitle: 'ไร่นาของคุณ: สัตว์เลี้ยง, แปลงพืช & ผลผลิต',
     holdingsTitle: 'สัตว์เลี้ยงที่ครอบครอง (ขายออกโดยใช้ - / +)',
@@ -197,6 +209,7 @@ const I18N = {
     daysText: 'วัน',
     avgCostText: 'ทุนเฉลี่ย',
     needsText: 'ต้องการ',
+    profitText: 'กำไร',
     sellActionText: 'ขาย',
     forText: 'เป็นเงิน',
     produceTitle: 'คลังผลผลิตที่เก็บเกี่ยวได้ (ขายเพื่อกำไร)',
@@ -205,13 +218,14 @@ const I18N = {
     eachText: 'ชิ้น',
     sellOne: 'ขาย 1 ชิ้น',
     sellAll: 'ขายทั้งหมด',
+    plotLabel: 'แปลงที่',
     daysLeftText: 'วันคงเหลือ',
     statusReady: 'พร้อมแล้ว',
     statusTending: 'กำลังดูแลฟาร์ม',
     statusOffline: 'ออฟไลน์',
-    winnerAlert: '🏆 ชัยชนะ! {name} ผ่านเงื่อนไขครบทั้ง 3 ข้อ: เงิน ${target}, สัตว์อย่างน้อย {animals} ตัว และขายผลผลิตครบ {sold} ชิ้น!',
-    reportFlu: '⚠️ แจ้งเตือน: สัตว์ในฟาร์ม {count} ตัวติดเชื้อไข้หวัดล้มตายเนื่องจากไม่มียารักษา!',
-    reportWorms: '🐛 แจ้งเตือน: พืชในแปลง {count} แปลงถูกหนอนศัตรูพืชกัดกินเหี่ยวเฉาตาย เนื่องจากไม่มีสเปรย์ป้องกัน!',
+    winnerAlert: 'ชัยชนะ! {name} ผ่านเงื่อนไขครบทั้ง 3 ข้อ: เงิน ${target}, สัตว์อย่างน้อย {animals} ตัว และขายผลผลิตครบ {sold} ชิ้น!',
+    reportFlu: 'แจ้งเตือน: สัตว์ในฟาร์ม {count} ตัวติดเชื้อไข้หวัดล้มตายเนื่องจากไม่มียารักษา!',
+    reportWorms: 'แจ้งเตือน: พืชในแปลง {count} แปลงถูกหนอนศัตรูพืชกัดกินเหี่ยวเฉาตาย เนื่องจากไม่มีสเปรย์ป้องกัน!',
     hostTitle: 'ตั้งค่ากฎการแข่งขัน (เฉพาะหัวหน้าห้อง)',
     lblStartCash: 'เงินทุนเริ่มต้น ($)',
     lblTargetCash: 'เป้าหมายเงิน ($)',
@@ -219,19 +233,21 @@ const I18N = {
     lblTargetProduce: 'เป้าหมายผลผลิตที่ต้องขาย',
     lblDuration: 'เวลารอบวัน (วินาที)',
     lblCooldown: 'ระยะพักอีเวนต์ (วัน)',
+    barCashLbl: 'เงิน',
     barGoalsLbl: 'เป้าหมาย',
+    clientGoalSummary: 'เป้าหมาย: ${cash} | สัตว์ที่ต้องมี: {animals} ตัว | ขายผลผลิต: {produce} ชิ้น | เวลารอบวัน: {duration} วินาที',
     howToPlayBody: `
-      <h4>🏆 เงื่อนไขชัยชนะ</h4>
+      <h4>เงื่อนไขชัยชนะ</h4>
       <p>ต้องบรรลุเป้าหมายครบทั้ง 3 ข้อพร้อมกัน: เงินสะสมตามเป้า, มีสัตว์เลี้ยงครบ และขายผลผลิตสะสมได้ตามกำหนด</p>
 
-      <h4>🐔 การเลี้ยงสัตว์ & อาหารสัตว์</h4>
+      <h4>การเลี้ยงสัตว์ & อาหารสัตว์</h4>
       <ul>
         <li>สัตว์จะกินอาหารข้ามคืนเพื่อสร้างผลผลิต (ไข่, นม, ขนแกะ ฯลฯ)</li>
         <li>หากอาหารสัตว์ไม่พอ สัตว์ในฟาร์ม 50% จะอดตาย</li>
         <li>เมื่อเกิดโรคระบาดไข้หวัด สัตว์ที่ไม่ได้รับยาจะล้มตาย</li>
       </ul>
 
-      <h4>🌱 แปลงผัก & พืชพรรณ</h4>
+      <h4>แปลงผัก & พืชพรรณ</h4>
       <ul>
         <li>ซื้อเมล็ดพันธุ์แล้วปลูกลงแปลงว่าง</li>
         <li>แต่ละแปลงต้องใช้ปุ๋ยทุกคืนเพื่อให้พืชโตขึ้น 1 วัน</li>
@@ -240,7 +256,7 @@ const I18N = {
       </ul>
     `,
     newsBody: `
-      <h4>🌿 เวอร์ชัน 1.2 — แปลงปลูกผัก & ภัยหนอนบุก</h4>
+      <h4>เวอร์ชัน 1.2 — แปลงปลูกผัก & ภัยหนอนบุก</h4>
       <ul>
         <li>เพิ่มเมล็ดพันธุ์พืช: ข้าวสาลี, แครอทหวาน, และสตรอว์เบอร์รี</li>
         <li>เพิ่มระบบปุ๋ยบำรุงพืช และการเก็บเกี่ยวผลผลิตอัตโนมัติเมื่อครบกำหนด</li>
@@ -292,12 +308,21 @@ function applyLanguageStatic() {
 
   document.getElementById('lang-btn-text').innerText = t('toggleBtn');
   document.getElementById('ui-leave-btn').innerText = t('leaveBtn');
-  document.getElementById('menu-item-how').innerText = t('menuHowToPlay');
   document.getElementById('menu-item-news').innerText = t('menuNews');
   document.getElementById('modal-how-title').innerText = t('howToPlayTitle');
   document.getElementById('modal-how-body').innerHTML = t('howToPlayBody');
   document.getElementById('modal-news-title').innerText = t('newsTitle');
   document.getElementById('modal-news-body').innerHTML = t('newsBody');
+
+  const lobbyHowTitle = document.getElementById('lobby-how-title');
+  if (lobbyHowTitle) lobbyHowTitle.innerText = t('howToPlayTitle');
+  const lobbyHowBody = document.getElementById('lobby-how-body');
+  if (lobbyHowBody) lobbyHowBody.innerHTML = t('howToPlayBody');
+
+  const waitingHowTitle = document.getElementById('waiting-how-title');
+  if (waitingHowTitle) waitingHowTitle.innerText = t('howToPlayTitle');
+  const waitingHowBody = document.getElementById('waiting-how-body');
+  if (waitingHowBody) waitingHowBody.innerHTML = t('howToPlayBody');
 
   document.getElementById('ui-title').innerText = t('title');
   document.getElementById('ui-subtitle').innerText = t('subtitle');
@@ -327,9 +352,15 @@ function applyLanguageStatic() {
   document.getElementById('ui-label-pesticide').innerText = t('labelPesticide');
   document.getElementById('ui-label-plots').innerText = t('labelPlots');
   document.getElementById('ui-label-med').innerText = t('labelMed');
-  document.getElementById('ui-label-need').innerText = t('labelNeed');
+  const uiLabelNeed = document.getElementById('ui-label-need');
+  if (uiLabelNeed) uiLabelNeed.innerText = t('labelNeed');
 
   document.getElementById('ui-market-title').innerText = t('marketTitle');
+  const uiSeedsMarketTitle = document.getElementById('ui-seeds-market-title');
+  if (uiSeedsMarketTitle) uiSeedsMarketTitle.innerText = t('seedsMarketTitle');
+  const uiAnimalsMarketTitle = document.getElementById('ui-animals-market-title');
+  if (uiAnimalsMarketTitle) uiAnimalsMarketTitle.innerText = t('animalsMarketTitle');
+
   document.getElementById('ui-feedbags-name').innerText = t('feedBagsName');
   document.getElementById('ui-feedbags-desc').innerText = t('feedBagsDesc');
   document.getElementById('ui-fertbags-name').innerText = t('fertBagsName');
@@ -344,6 +375,6 @@ function applyLanguageStatic() {
   document.getElementById('ui-garden-title').innerText = t('gardenTitle');
   document.getElementById('ui-produce-title').innerText = t('produceTitle');
 
-  document.getElementById('ui-bar-cash-lbl').innerText = 'Cash';
+  document.getElementById('ui-bar-cash-lbl').innerText = t('barCashLbl');
   document.getElementById('ui-bar-goals-lbl').innerText = t('barGoalsLbl');
 }

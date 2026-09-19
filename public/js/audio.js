@@ -27,7 +27,6 @@ async function prepareSeamlessBuffer(url, crossfadeSeconds = 1.2) {
   const fadeSamples = Math.min(Math.floor(crossfadeSeconds * sampleRate), Math.floor(decoded.length / 4));
   const loopLength = decoded.length - fadeSamples;
 
-  // Create new buffer shortened by the fade duration
   const seamlessBuffer = audioCtx.createBuffer(
     decoded.numberOfChannels,
     loopLength,
@@ -38,16 +37,13 @@ async function prepareSeamlessBuffer(url, crossfadeSeconds = 1.2) {
     const inputData = decoded.getChannelData(channel);
     const outputData = seamlessBuffer.getChannelData(channel);
 
-    // Copy main body
     outputData.set(inputData.subarray(0, loopLength));
 
-    // Overlap the tail into the beginning using an equal-power crossfade
     for (let i = 0; i < fadeSamples; i++) {
       const tailSample = inputData[loopLength + i];
       const headSample = outputData[i];
-      const progress = i / fadeSamples; // 0 to 1
+      const progress = i / fadeSamples;
 
-      // Smooth cosine crossfade
       const fadeIn = Math.sin((progress * Math.PI) / 2);
       const fadeOut = Math.cos((progress * Math.PI) / 2);
 
@@ -105,10 +101,9 @@ async function toggleBGM() {
     await initBgmNodes();
     if (!bgmAudioBuffer) return;
 
-    // Create a native sample-accurate looping source node
     bgmSourceNode = audioCtx.createBufferSource();
     bgmSourceNode.buffer = bgmAudioBuffer;
-    bgmSourceNode.loop = true; // Perfect hardware loop
+    bgmSourceNode.loop = true;
     bgmSourceNode.connect(bgmGainNode);
     bgmSourceNode.start(0);
 

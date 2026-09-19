@@ -393,7 +393,11 @@ socket.on('room_update', (data) => {
     } else {
       hostPanel.style.display = 'none';
       clientSettings.style.display = 'block';
-      clientSettings.innerText = `Goal: $${data.targetCash} | Need: ${data.targetAnimalCount} Animals | Sell: ${data.targetProduceSold} Produce | Duration: ${data.dayDuration}s`;
+      clientSettings.innerText = t('clientGoalSummary')
+        .replace('{cash}', data.targetCash)
+        .replace('{animals}', data.targetAnimalCount)
+        .replace('{produce}', data.targetProduceSold)
+        .replace('{duration}', data.dayDuration);
       document.getElementById('btn-start').style.display = 'none';
       document.getElementById('waiting-msg').style.display = 'inline';
     }
@@ -434,6 +438,14 @@ function renderUI() {
     neededFeed += count * item.feedCost;
   });
 
+  let neededFert = 0;
+  (me.plots || []).forEach(plot => {
+    const cropDef = PLANTS.find(c => c.id === plot.cropId);
+    if (cropDef) {
+      neededFert += cropDef.fertilizerCost;
+    }
+  });
+
   const soldCount = me.totalProduceSold || 0;
   const occupiedPlots = (me.plots || []).length;
   const maxPlots = me.maxPlots || 6;
@@ -452,11 +464,21 @@ function renderUI() {
   hudProdSold.innerText = `${soldCount} / ${roomState.targetProduceSold}`;
   hudProdSold.style.color = soldCount >= roomState.targetProduceSold ? 'var(--success)' : '#34d399';
 
-  document.getElementById('hud-feed').innerText = `${me.feedBags} 🌾`;
-  document.getElementById('hud-fertilizer').innerText = `${me.fertilizer || 0} 🧪`;
-  document.getElementById('hud-pesticide').innerText = `${me.pesticide || 0} 🐛🔫`;
-  document.getElementById('hud-plots').innerText = `${occupiedPlots} / ${maxPlots} 🪴`;
-  document.getElementById('hud-medicine').innerText = `${me.medicine || 0} 💊`;
+  const hudFeed = document.getElementById('hud-feed');
+  if (hudFeed) {
+    hudFeed.innerText = `${me.feedBags} / ${neededFeed}`;
+    hudFeed.style.color = (me.feedBags >= neededFeed) ? 'var(--success)' : 'var(--danger)';
+  }
+
+  const hudFert = document.getElementById('hud-fertilizer');
+  if (hudFert) {
+    hudFert.innerText = `${me.fertilizer || 0} / ${neededFert}`;
+    hudFert.style.color = ((me.fertilizer || 0) >= neededFert) ? 'var(--success)' : 'var(--danger)';
+  }
+
+  document.getElementById('hud-pesticide').innerText = me.pesticide || 0;
+  document.getElementById('hud-plots').innerText = `${occupiedPlots} / ${maxPlots}`;
+  document.getElementById('hud-medicine').innerText = me.medicine || 0;
   updateTimerDisplay(typeof roomState.timeLeft === 'number' ? roomState.timeLeft : roomState.dayDuration);
 
   const eventBox = document.getElementById('event-banner-box');
@@ -470,18 +492,17 @@ function renderUI() {
   }
 
   const currentFeedPrice = roomState.feedPrice || 10;
-  document.getElementById('ui-feedbags-name').innerText = `${t('feedBagsName')} ($${currentFeedPrice} ea)`;
+  const feedTag = t('supplyPriceTag').replace('{price}', currentFeedPrice);
+  document.getElementById('ui-feedbags-name').innerText = `${t('feedBagsName')} ${feedTag}`;
 
   const currentFertPrice = roomState.fertilizerPrice || 8;
-  document.getElementById('ui-fertbags-name').innerText = `${t('fertBagsName')} ($${currentFertPrice} ea)`;
-
-  document.getElementById('hud-need').innerText = `${neededFeed} ${t('bagsPerDay')}`;
-  document.getElementById('hud-need').style.color = (me.feedBags >= neededFeed) ? 'var(--success)' : 'var(--danger)';
+  const fertTag = t('supplyPriceTag').replace('{price}', currentFertPrice);
+  document.getElementById('ui-fertbags-name').innerText = `${t('fertBagsName')} ${fertTag}`;
 
   document.getElementById('bar-cash').innerText = `$${me.cash} / $${roomState.targetCash}`;
-  document.getElementById('bar-animals').innerText = `${totalAnimals}/${roomState.targetAnimalCount} 🐾`;
+  document.getElementById('bar-animals').innerText = `${totalAnimals}/${roomState.targetAnimalCount}`;
   document.getElementById('bar-animals').style.color = totalAnimals >= roomState.targetAnimalCount ? 'var(--success)' : '#fbbf24';
-  document.getElementById('bar-prod').innerText = `${soldCount}/${roomState.targetProduceSold} 📦`;
+  document.getElementById('bar-prod').innerText = `${soldCount}/${roomState.targetProduceSold}`;
   document.getElementById('bar-prod').style.color = soldCount >= roomState.targetProduceSold ? 'var(--success)' : '#34d399';
 
   document.getElementById('ready-status-container').innerHTML = Object.values(roomState.players).map(p => {
@@ -497,7 +518,6 @@ function renderUI() {
     return `<span class="player-tag ${tagClass}">${p.name}: $${p.cash} (${status})</span>`;
   }).join('');
 
-  // 1. Animals Marketplace
   const mDiv = document.getElementById('market-animals-list');
   if (mDiv) {
     mDiv.innerHTML = '';
@@ -552,7 +572,6 @@ function renderUI() {
     });
   }
 
-  // 2. Seeds Marketplace
   const sDiv = document.getElementById('market-seeds-list');
   if (sDiv) {
     sDiv.innerHTML = '';
@@ -587,14 +606,14 @@ function renderUI() {
         <div>
           <strong style="font-size: 1rem;">${seedName}</strong>
           <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
-            ⏳ <b>${item.growthDays} ${t('daysText')}</b> | 🧪 <b>${item.fertilizerCost}/day</b> | ${t('marketPriceText')}: <b style="color:var(--primary);">$${price}</b> ${deltaBadge}
+            <b>${item.growthDays} ${t('daysText')}</b> | <b>${item.fertilizerCost} ${t('fertPerDay')}</b> | ${t('marketPriceText')}: <b style="color:var(--primary);">$${price}</b> ${deltaBadge}
           </div>
         </div>
         <div>
           <button class="btn ${btnClass}" 
                   onclick="plantSeed('${item.id}')" 
                   ${(!canAfford || !hasFreePlot || isLocked || isFeedback) ? 'disabled' : ''}>
-            ${!hasFreePlot ? 'Plots Full' : btnText}
+            ${!hasFreePlot ? t('plotsFull') : btnText}
           </button>
         </div>
       `;
@@ -607,7 +626,6 @@ function renderUI() {
   updatePestBuyButton();
   updateMedBuyButton();
 
-  // 3. Barn - Owned Animals
   const aDiv = document.getElementById('inventory-animals-list');
   aDiv.innerHTML = '';
   let hasAnimals = false;
@@ -636,7 +654,7 @@ function renderUI() {
       row.innerHTML = `
         <div style="display:flex; justify-content:space-between;">
           <strong>${animalName} (x${owned})</strong>
-          <span class="${profit >= 0 ? 'profit-pos' : 'profit-neg'}">P/L: ${profit >= 0 ? '+' : ''}$${profit}</span>
+          <span class="${profit >= 0 ? 'profit-pos' : 'profit-neg'}">${t('profitText')}: ${profit >= 0 ? '+' : ''}$${profit}</span>
         </div>
         <div style="font-size:0.75rem; color:var(--text-muted); display:flex; justify-content:space-between; margin:4px 0;">
           <span>${t('avgCostText')}: $${avg} | ${t('marketPriceText')}: $${currentPrice}</span>
@@ -660,7 +678,6 @@ function renderUI() {
     aDiv.innerHTML = `<p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:10px;">${t('noAnimals')}</p>`;
   }
 
-  // 4. Garden - Active Plots
   const gDiv = document.getElementById('garden-plots-list');
   gDiv.innerHTML = '';
   if (me.plots && me.plots.length > 0) {
@@ -674,7 +691,7 @@ function renderUI() {
       row.style.marginBottom = '6px';
       row.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-          <strong>Plot #${index + 1}: ${cropName}</strong>
+          <strong>${t('plotLabel')} #${index + 1}: ${cropName}</strong>
           <span style="font-size:0.8rem; color:var(--primary); font-weight:bold;">${plot.growthProgress} / ${plot.requiredDays} ${t('daysText')}</span>
         </div>
         <div style="background:#090e19; border-radius:4px; height:8px; overflow:hidden; border:1px solid var(--border);">
@@ -687,7 +704,6 @@ function renderUI() {
     gDiv.innerHTML = `<p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:10px;">${t('noPlants')}</p>`;
   }
 
-  // 5. Raw Harvest Storage
   const pDiv = document.getElementById('produce-list');
   pDiv.innerHTML = '';
   let hasProduce = false;
@@ -715,7 +731,7 @@ function renderUI() {
       row.innerHTML = `
         <div>
           <strong>${produceName}: ${amount} ${t('eachText')}</strong>
-          <div style="font-size:0.75rem; color:var(--text-muted);">${t('marketUnitPrice')}: $${unitPrice} ${t('eachText')} ${deltaBadge}</div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">${t('marketUnitPrice')}: $${unitPrice} / ${t('eachText')} ${deltaBadge}</div>
         </div>
         <div style="display:flex; gap:6px;">
           <button class="btn ${isFeedback ? 'btn-sold' : 'btn-success'}" onclick="sellProduce('${item.produce}', 1)" ${isLocked || isFeedback ? 'disabled' : ''}>
@@ -750,7 +766,6 @@ function tryAutoReconnect() {
   }
 }
 
-/* --- Hamburger Menu & Modal Controls --- */
 function toggleMenu(event) {
   event.stopPropagation();
   const dropdown = document.getElementById('menu-dropdown');
